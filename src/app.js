@@ -60,5 +60,6 @@ class App{
  render(){const c=this.ctx;c.setTransform(this.dpr,0,0,this.dpr,0,0);c.fillStyle=C.bg;c.fillRect(0,0,this.width,this.height);c.translate(this.ox,this.oy);c.scale(this.scale,this.scale);this.buttons=[];if(this.screen==='home')this.home();else if(this.screen==='game')this.gameView();else this.result();if(this.messageTime>0){this.rect(24,96,327,40,C.ink,12);this.text(this.message,187,116,12,C.white,'center');}}
 }
 require('./interface').install(App,GAMES,M,C);
+require('./flying-ui').install(App);
 require('./layout').install(App);
 module.exports={App,GAMES};
