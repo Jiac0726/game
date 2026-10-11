@@ -1,134 +1,57 @@
-# 玩一会儿 · 原素材前端 0.6
+# 玩一会儿 · 微信小游戏源码
 
-六款可玩的微信小游戏，共用一套手绘涂鸦组件。包含 21 页交互设计、离线试玩、页面画廊和批量 PNG 导出工具。
+此仓库只保存微信小游戏入口、业务源码、素材 ID/尺寸/路径映射与测试。图片、素材 ZIP、网页预览和导出工具不提交到仓库。
 
-## 先看效果
+项目类型为微信 **小游戏**，不是 WXML 小程序。入口为 `game.js`，采用现有 Canvas 微信适配器。原 DOM 网页版在此前交付的完整资料包中。
 
-1. 克隆仓库：`git clone https://github.com/Jiac0726/game.git`，进入 `game` 目录。
-   或下载ZIP并解压，保持目录结构。
-2. 打开 `frontend/index.html`：实际试玩新的原素材前端。
-3. 打开 `frontend/gallery.html`：并排查看全部 21 页。
-   游戏场景见 `frontend/scene-gallery.html`，九级水果素材见 `frontend/fruit-assets.html`。
-4. 预览页不保存成绩；实际试玩使用本设备真实记录。
+## 引用外置素材库
 
-新前端使用 DOM、独立 PNG、可编辑文字与 SVG 路径，不使用 Canvas 绘制。
-876 张原始 PNG 已注册；纸张、插画、边框、按钮使用原图层，示例棋子和成绩由真实游戏状态替换。
-布局按 941×1672 原设计整体等比缩放，PNG 保持纵横比。文字使用系统中文字体，不保证与 Canva 原字体逐像素一致。
-浏览器直接打开即可使用；若浏览器限制本地存储或分享，可用本地静态服务器打开。
-`preview.html` / 根目录 `gallery.html` 保留旧 Canvas 版本，微信小游戏当前仍使用旧适配器。
+素材包：`game-asset-library.zip`（单独交付，879 张 PNG）。解压后保留 `assets/` 下的分类及文件名。
 
-## 微信开发者工具
+1. 将整个 `assets/` 目录上传到自己的 HTTPS 对象存储或 CDN。例如公开路径结构为 `https://你的域名/game-assets/v1/assets/BG/...png`。
+2. 修改 `src/asset-config.js`：
 
-导入本目录，项目类型选择“小游戏”。项目配置暂用 touristappid；工具要求 AppID 时填入自己的小游戏 AppID。真机预览和分享也需要自己的 AppID。尚未上传或发布。
+   ```js
+   module.exports = {
+     baseUrl: 'https://你的域名/game-assets/v1',
+     useLocalAssets: false
+   };
+   ```
 
-## 导航与功能
+   `baseUrl` 填 `assets/` 的父目录，不包含 `assets`。使用版本目录管理更新；不要填写 ZIP 下载链接、临时签名链接或 ChatGPT 文件链接。客户端按 ID 查表，按需加载独立图片，不下载整个 ZIP。
+3. 在微信后台配置素材服务器域名，并使用自己的小游戏 AppID 替换 `project.config.json` 中的 `touristappid`。导入项目目录，在微信开发者工具及真机检查素材加载。
 
-- 底部：玩法 / 个人。
-- 玩法顶部：个人 / 对战 / 派对。
-- 单人：方块消除、水果合成、一笔连线、弹球打砖块。
-- 对战：同屏反应对决、轮流五子棋、同机好友挑战。
-- 派对：2—4 人，选择 1—3 个项目；每人每项 60 秒，同项目相同开局，累计原始分数，支持并列冠军。浏览器支持保留轮次进度、继续上次。
-- 个人：真实本地纪录、触感设置、清空记录确认、分享合集。
-- 连线：5 关逐步解锁；当前是基础蛇形可解路径的反射变体。
-- 暂停冻结计时；派对不允许重开当前轮；中途退出需要确认。
+官方示例及网络说明：
+- https://github.com/wechat-miniprogram/minigame-demo
+- https://developers.weixin.qq.com/minigame/dev/guide/base-ability/network.html
 
-| 游戏 | 操作 |
-|---|---|
-| 方块 | 点击下方形状，再点击棋盘锚点 |
-| 水果 | 场地内移动瞄准，松手投放 |
-| 连线 | 绿点出发经过全部点，橙点结束；原路退格撤销 |
-| 弹球 | 点击发射，左右滑动接球 |
-| 反应对决 | 两人各点半屏，绿色才能点；抢跑给对手一分 |
-| 五子棋 | 黑白轮流点击交叉点 |
+当前没有提供真实素材托管域名，所以 `baseUrl` 留空。留空时显示配置提示，使用内置绘制组件，游戏规则仍可运行；这不代表远程素材已经接通。
 
-## 如何批量制造界面
+本地临时验证：把素材包中的 `assets/` 解压到项目根目录，将 `useLocalAssets` 设为 `true`。图片目录已在 `.gitignore` 中排除，正式配置改回远程地址。开发工具上传本地模式时会包含图片，请自行检查包大小。
 
-- `frontend/app.js`：DOM素材拼装、点击区域、真实游戏操作与音效。
-- `frontend/scene-plan.js`：页面状态映射、示例图层隐藏、实时文案。
-- `frontend/scene-data.js`：1158层的原始坐标、876张图片路径，由脚本生成。
-- `src/theme.js`：颜色、描边、纸纹、按钮和涂鸦图标。改一次，全局生效。
-- `src/interface.js`：页面模板、流程、21 页清单 `PAGES`、样例状态。
-- `src/app.js`：游戏操作和棋盘绘制。
-- `src/models.js`：六款游戏规则。
-- `docs/design-system.md`：可继续扩展的界面规范。
+## 源码说明
 
-修改代码后重新构建浏览器文件：
+| 文件 | 用途 |
+| --- | --- |
+| `game.js` | 微信入口、触摸与前后台事件、动画循环 |
+| `src/app.js` | 游戏交互及绘制 |
+| `src/models.js` | 六款游戏规则 |
+| `src/interface.js` | 个人、对战、派对、纪录、设置等流程 |
+| `src/theme.js` | 手绘组件和颜色 |
+| `src/layout.js` | 素材等比缩放、可见边界、图片内存缓存与布局检查 |
+| `src/asset-config.js` | 素材库地址与本地开发开关 |
+| `src/asset-source.js` | 素材 ID 转远程 URL |
+| `src/asset-files.js` | 原页面素材 ID、别名与相对路径表 |
+| `src/asset-catalog.js` | 原页面元素尺寸、透明可见边界与参考坐标 |
 
-```sh
-python3 tools/build_scene_assets.py
-python3 tools/build_frontend.py
-python3 tools/build_preview.py
-node tools/build_gallery.js
-```
+素材库中的新增水果素材也保留在独立 ZIP；当前微信适配器使用原页面映射，并未迁移原 DOM 前端的全部场景拼装。
 
-批量导出 21 张 750×1624 PNG：
+## 功能与验证
 
-```sh
-npm install --no-save @napi-rs/canvas
-node tools/render_pages.js --font "你的中文字体.ttf" --out renders
-```
-
-系统已有中文字体时可省略 `--font`。输出还包含 `manifest.json`，对应页面 ID、中文名、文件名与尺寸。PNG 属于样例状态；不要用样例成绩替换用户真实数据。使用自备且获授权的中文字体。
-
-## 验证与边界
-
-```sh
-node tests/models.test.js
-node tests/interface.test.js
-```
-
-本次通过 10 组游戏规则/输入测试和 6 组界面流程测试；21 页均通过实际 Canvas 离屏渲染。流程覆盖不同屏幕点击、派对计分及相同开局、暂停计时、挑战重开、关卡保存和清空确认。
-
-测试环境缺少中文字体，离屏图未用于确认中文字形；完整浏览器、微信开发者工具及真机尚未验证。渲染器按系统字体展示中文。代码版采用设计稿配色与组件语言，并非逐像素还原已生成效果图。
-
-好友挑战当前为同一部手机轮流挑战。微信分享仅分享文字和合集入口；远程挑战链接、账号同步、云排行榜、联机房间未接入。停车解谜与找不同尚未实现，首页只展示可玩的四款单人游戏。
-
-新浏览器前端会保存派对轮次与积分进度，重开后从当前待挑战玩家继续；正在进行的棋盘不会保存。个人分数与关卡记录保存在本设备。新前端提供通过WebAudio生成的基础音效和背景旋律。
-
-## 0.3：尺寸与防遮挡接入
-
-浏览器预览右上角点击“布局检查”；也可使用 `preview.html?debug=1`。
-红色按钮边框表示该按钮有尺寸或交互重叠提示，绿色表示本次按钮检查未发现问题。文字候选问题在 `window.__arcade.layoutSnapshot.issues` 查看。
-微信开发时可在创建 app 后调用 `app.enableLayoutDebug(true)`；正式默认关闭检查。
-
-- `src/layout.js`：运行时等比放置、文字测量、按钮标签缩放与检查。
-- `src/asset-catalog.js`：原21页1158个Canva元素的ID与参考尺寸。
-- `layoutSnapshot`：当前页面元素、按钮范围及候选问题。弹窗打开时仅检查当前有效按钮，避免把被遮罩的底页误判为可点击。
-- 点击命中直接读取按钮的 `bounds`，与登记的布局框一致。
-- 不自动移动冲突元素，避免改变游戏棋盘坐标或误移有意重叠的元素。
-
-### 原始图片绑定
-
-```js
-app.setAssetFiles({
-  // 键可用真实asset_id或目录catalog_id，值是已导出的本地图片路径。
-  '你的真实asset_id': 'assets/exported-image.png'
-});
-// 在页面的绘制函数内调用；按原比例装入指定区域。
-const result = app.drawAsset('真实目录catalog_id', 24, 180, 150, 140);
-```
-
-没有图片文件绑定时返回 `missing_asset_file`；不会把Canva ID伪装成可访问图片地址。
-876张独立PNG已全部导出，位于 `assets/分类/目录ID_素材ID.png`。`src/asset-files.js` 提供目录ID与真实asset_id到文件的映射；微信入口和浏览器预览自动注册。六款游戏插画通过统一 doodle 入口调用原始素材，其他页面仍使用现有组件布局；不是整套页面逐像素复刻。
-`src/asset-catalog.js` 已补齐实际像素尺寸与非零alpha可见边界。drawAsset 返回 image bounds 与 visibleBounds，布局检查使用可见边界的矩形。检查不能保证完全无视觉遮挡，也不会改变真实游戏碰撞逻辑。
-
-
-## 0.4：完整素材库
-
-本次新增876个原始独立PNG、自动路径映射、透明边界测量与原素材插画。693个尺寸与此前Canva元数据完全一致；其余183个记录实际PNG尺寸。完整资料包的 `asset-library/index.html` 可以按页面、类别或ID浏览图片，`asset-dimensions.csv` 提供尺寸表。282个文字层继续保存为可编辑文字数据，未烘焙进背景。
-
-素材占约17 MB，应按业务拆分微信分包与加载策略后再提交发布。当前目录可用于本地开发；微信AppID、分包配额、真机和发布审核尚未验证。
-
-## 本地验证
+六款游戏：方块消除、水果合成、一笔连线、弹球打砖块、反应对决、五子棋。底部玩法/个人，玩法顶部个人/对战/派对。同屏对战与同机轮流挑战；未接入联网房间、云账号及云排行榜。
 
 ```sh
 node --test tests/*.test.js
 ```
 
-重建素材尺寸与浏览器包，需要 Python 与 Pillow：
-
-```sh
-python -m pip install -r requirements.txt
-python tools/build_scene_assets.py
-python tools/build_frontend.py
-```
+测试覆盖游戏规则、界面流程、素材 URL 映射与尺寸元数据、布局命中及图片内存复用。远程真实地址、微信开发者工具和真机尚未验证。图片加载失败时使用内置绘制组件；图片只缓存于当前进程，尚未实现跨启动磁盘缓存。

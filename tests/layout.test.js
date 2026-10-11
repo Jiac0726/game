@@ -1,0 +1,12 @@
+const assert=require('node:assert/strict');
+const {inspect,fit}=require('../src/layout'),{App}=require('../src/app');
+assert.equal(fit({width:941,height:1672},375,812).scale,375/941);
+const btn=(id,x)=>({id,kind:'button',bounds:{x,y:10,width:50,height:50}});
+assert(inspect([btn('a',0),btn('b',20)]).some(x=>x.type==='interactive_overlap'));
+assert(!inspect([btn('a',0),btn('b',60)]).some(x=>x.type==='interactive_overlap'));
+const ctx=new Proxy({measureText:s=>({width:String(s).length*15})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
+let imageLoads=0;const platform={getStorageSync:()=>null,setStorageSync:()=>{},createImage:()=>{imageLoads++;return {set src(s){this.onload();}}}};
+const a=new App({getContext:()=>ctx},{windowWidth:375,windowHeight:812},platform);a.enableLayoutDebug();a.render();assert(a.layoutSnapshot.elements.length>0);assert(a.layoutSnapshot.buttons.every(b=>b.bounds.width>0));
+const id=Object.keys(require('../src/asset-catalog')).find(k=>a.assetInfo(k).asset_id);assert.equal(a.drawAsset(id,20,20,100,100).status,'missing_asset_file');a.setAssetFiles({[id]:'assets/example.png'});assert.equal(a.drawAsset(id,20,20,100,100).status,'ready');a.drawAsset(id,20,20,100,100);assert.equal(imageLoads,1);
+a.start('blocks');a.pause();a.render();assert(a.layoutSnapshot.elements.every(e=>e.kind==='button'));
+console.log('PASS runtime layout: fit, collisions, debug, missing assets, image cache, modal isolation');

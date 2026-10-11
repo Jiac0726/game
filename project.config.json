@@ -1,0 +1,24 @@
+{
+  "description": "玩一会儿 · 微信小游戏源码（外置素材库）",
+  "compileType": "game",
+  "appid": "touristappid",
+  "projectname": "play-a-while",
+  "miniprogramRoot": "./",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "folder",
+        "value": "tests"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
+      }
+    ]
+  }
+}
