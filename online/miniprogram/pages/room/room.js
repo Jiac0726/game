@@ -3,10 +3,11 @@ const {Flying}=require('../../lib/flying-model');
 const paths=require('../../lib/flying-paths');
 const assets=require('../../lib/flying-assets').files;
 const config=require('../../config');
+function art(id){return config.assetBaseUrl&&assets[id]?config.assetBaseUrl.replace(/\/$/,'')+'/'+assets[id]:'';}
 const HEX={R:'#ed9887',Y:'#f0d16c',B:'#7ebfdc',G:'#94cda7'};
 const NAME={R:'红方',Y:'黄方',B:'蓝方',G:'绿方'};
 Page({
- data:{room:{status:'loading'},seats:[],busy:false,connected:false,error:'',legal:[],seconds:60,pending:false,rolling:false},
+ data:{room:{status:'loading'},seats:[],busy:false,connected:false,error:'',legal:[],seconds:60,pending:false,rolling:false,background:art('FG-BG-001'),buttonArt:art('FG-BUTTON-PRIMARY')},
  onLoad(options){
   this.roomId=options.roomId;this.images={};this.offset=0;
   const pending=wx.getStorageSync('flyingPending');
@@ -29,7 +30,7 @@ Page({
   this.offset=result.serverNow-Date.now();
   const oldRoll=this.data.room.lastRoll;
   const animate=room.lastRoll&&this.data.room.id&&(!oldRoll||room.lastRoll.id!==oldRoll.id);
-  const seats=room.seats.map((p,i)=>p?{index:i,name:p.name,colorHex:HEX[p.color],label:room.status==='waiting'?(p.ready?'已准备':'尚未准备'):(room.game&&room.game.turn===i?'当前回合':'已入座')}:{index:i,name:'等待好友',colorHex:'#c8c5b9',label:'空座位'});
+  const seats=room.seats.map((p,i)=>p?{index:i,name:p.name,colorHex:HEX[p.color],avatar:art('FG-AVATAR-'+p.color),label:room.status==='waiting'?(p.ready?'已准备':'尚未准备'):(room.game&&room.game.turn===i?'当前回合':'已入座')}:{index:i,name:'等待好友',colorHex:'#c8c5b9',label:'空座位'});
   const myTurn=room.game&&room.game.turn===room.seat&&room.status==='playing';
   const g=room.game&&Object.assign(new Flying(4),room.game);
   this.setData({room,seats,myTurn,legal:myTurn?g.legal():[],count:room.seats.filter(Boolean).length,allReady:room.seats.every(p=>p&&p.ready),myReady:!!(room.seats[room.seat]&&room.seats[room.seat].ready),connected:true,statusText:room.status==='closed'?'房间已关闭':room.status==='done'?NAME[room.game.colors[room.game.winner]]+'获胜！':room.game?'轮到'+room.seats[room.game.turn].name:'等待好友'});
@@ -49,7 +50,7 @@ Page({
  },
  async sendPending(){
   if(!this.pending||this.data.busy)return;this.setData({busy:true,error:''});
-  try{const request=this.pending;const r=await call(request.action,request);this.pending=null;wx.removeStorageSync('flyingPending');this.setData({pending:false});this.accept(r);if(request.action==='roll'&&!this.hidden)this.animateDie();}
+  try{const request=this.pending;const r=await call(request.action,request);this.pending=null;wx.removeStorageSync('flyingPending');this.setData({pending:false});this.accept(r);}
   catch(e){
    if(e.code&&e.code!=='SERVER'){this.pending=null;wx.removeStorageSync('flyingPending');this.setData({pending:false});}
    if(!this.destroyed)this.setData({error:e.message});
@@ -58,6 +59,7 @@ Page({
  },
  reconnect(){if(this.data.room.id)this.poll();else this.join();},retry(){this.sendPending();},ready(){this.command('ready');},start(){this.command('start');},roll(){this.command('roll');},move(e){this.command('move',{piece:Number(e.currentTarget.dataset.piece)});},timeout(){this.command('timeout');},rematch(){this.command('rematch');},
  onShareAppMessage(){return {title:'来玩手绘飞行棋！四人房间还差你',path:'/pages/room/room?roomId='+this.roomId};},
+ rules(){wx.showModal({title:'飞行规则',content:'四人全部准备后由房主开始。2、4、6点起飞；6点连掷；点数需刚好到终点。点击高亮飞机移动，每次操作限时60秒。',showCancel:false});},
  copyRoom(){wx.setClipboardData({data:this.roomId});},
  async leave(){
   if(this.data.room.status==='playing'){wx.navigateBack({fail:()=>wx.reLaunch({url:'/pages/index/index'})});return;}
@@ -79,7 +81,7 @@ Page({
    paths.ring.forEach((p,i)=>{c.fillStyle=Object.values(HEX)[i%4];c.fillRect(p.x*k-6,p.y*k-6,12,12);c.strokeStyle='#465446';c.strokeRect(p.x*k-6,p.y*k-6,12,12);});
    Object.keys(paths.colors).forEach(color=>{c.fillStyle=HEX[color];paths.colors[color].home.forEach(p=>c.fillRect(p.x*k-6,p.y*k-6,12,12));paths.colors[color].airport.forEach(p=>{c.beginPath();c.arc(p.x*k,p.y*k,10,0,Math.PI*2);c.stroke();});});
   }
-  const g=this.data.room.game&&Object.assign(new Flying(4),this.data.room.game);this.hit=[];
+  const g=this.data.room.game?Object.assign(new Flying(4),this.data.room.game):new Flying(4);this.hit=[];
   if(!g)return;
   const groups={};
   g.colors.forEach((color,player)=>g.pieces[player].forEach((progress,piece)=>{if(progress===57)return;const p=g.position(player,piece),key=p.x+','+p.y;(groups[key]||(groups[key]=[])).push({color,player,piece,p});}));
@@ -92,6 +94,6 @@ Page({
   }));
   if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image)c.drawImage(image,s/2-32,s/2-32,64,64);}
  },
- boardTap(e){if(this.data.busy||this.data.rolling||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<20)this.command('move',{piece:sorted[0].piece});},
+ boardTap(e){if(this.data.busy||this.data.pending||this.data.rolling||!this.data.myTurn||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<20)this.command('move',{piece:sorted[0].piece});},
  animateDie(){clearTimeout(this.animation);this.setData({rolling:true});this.diceFrame=0;const frame=()=>{if(this.hidden||this.destroyed)return;this.draw();this.diceFrame++;if(this.diceFrame<16)this.animation=setTimeout(frame,80);else{this.setData({rolling:false});this.draw();}};frame();}
 });

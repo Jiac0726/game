@@ -1,1 +1,8 @@
 .seats { display:flex; flex-wrap:wrap; gap:16rpx; }.seat { width:calc(50% - 32rpx); border-left:8rpx solid; padding:8rpx 8rpx; }.board { width:100%; height:686rpx; }.turn,.dice { text-align:center; font-size:32rpx; margin:16rpx 0; }.choices { display:flex; flex-wrap:wrap; gap:12rpx; }.choices button { flex:1; padding:0 8rpx; font-size:26rpx; }
+
+.paper-background { position:fixed; inset:0; width:100%; height:100%; opacity:.28; z-index:-1; pointer-events:none; }
+.toolbar { display:flex; justify-content:space-between; gap:20rpx; }.toolbar button { margin:0; font-size:26rpx; }
+.avatar { width:80rpx; height:80rpx; float:left; margin-right:12rpx; }
+.board { height:calc(100vw - 64rpx); border-radius:24rpx; overflow:hidden; }
+.roll-button { position:relative; min-height:100rpx; }.button-art { position:absolute; inset:0; width:100%; height:100%; opacity:.5; pointer-events:none; }.roll-button text { position:relative; }
+.die-face { text-align:center; font-size:100rpx; line-height:1; color:#344455; }
