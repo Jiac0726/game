@@ -1,6 +1,7 @@
 const {call}=require('../../lib/api');
 const {Flying}=require('../../lib/flying-model');
 const paths=require('../../lib/flying-paths');
+const artLayout=require('../../lib/flying-art-layout');
 const assets=require('../../lib/flying-assets').files;
 const config=require('../../config');
 function art(id){return config.assetBaseUrl&&assets[id]?config.assetBaseUrl.replace(/\/$/,'')+'/'+assets[id]:'';}
@@ -83,8 +84,8 @@ Page({
  },
  asset(id){
   if(!config.assetBaseUrl||!this.canvas||!assets[id])return null;
-  if(this.images[id])return this.images[id].ready?this.images[id].image:null;
-  const image=this.canvas.createImage(),entry={image,ready:false};this.images[id]=entry;
+  if(this.images[assets[id]])return this.images[assets[id]].ready?this.images[assets[id]].image:null;
+  const image=this.canvas.createImage(),entry={image,ready:false};this.images[assets[id]]=entry;
   image.onload=()=>{entry.ready=true;this.draw();};image.onerror=()=>{};
   image.src=config.assetBaseUrl.replace(/\/$/,'')+'/'+assets[id];return null;
  },
@@ -92,7 +93,7 @@ Page({
   if(!this.ctx)return;const c=this.ctx,s=this.size,k=s/paths.width;
   c.clearRect(0,0,s,s);c.fillStyle='#fffdf5';c.fillRect(0,0,s,s);
   const board=this.asset('FG-BOARD-001');
-  if(board)c.drawImage(board,0,0,s,s);
+  if(board){c.drawImage(board,0,0,s,s);for(const color of Object.keys(HEX)){const image=this.asset('FG-AIRPORT-'+color),a=artLayout.airportBounds(color,{x:0,y:0,width:s,height:s});if(image)c.drawImage(image,a.x,a.y,a.width,a.height);}}
   else {
    paths.ring.forEach((p,i)=>{c.fillStyle=Object.values(HEX)[i%4];c.fillRect(p.x*k-6,p.y*k-6,12,12);c.strokeStyle='#465446';c.strokeRect(p.x*k-6,p.y*k-6,12,12);});
    Object.keys(paths.colors).forEach(color=>{c.fillStyle=HEX[color];paths.colors[color].home.forEach(p=>c.fillRect(p.x*k-6,p.y*k-6,12,12));paths.colors[color].airport.forEach(p=>{c.beginPath();c.arc(p.x*k,p.y*k,10,0,Math.PI*2);c.stroke();});});
@@ -103,12 +104,13 @@ Page({
   g.colors.forEach((color,player)=>g.pieces[player].forEach((progress,piece)=>{if(progress===57)return;const p=g.position(player,piece),key=p.x+','+p.y;(groups[key]||(groups[key]=[])).push({color,player,piece,p});}));
   Object.values(groups).forEach(group=>group.forEach((t,index)=>{
    const dx=group.length>1?(index%4-1.5)*10:0,dy=group.length>4?Math.floor(index/4)*10-5:0;
-   const x=t.p.x*k+dx,y=t.p.y*k+dy,image=this.asset('FG-TOKEN-'+t.color);
+   const target=board?artLayout.project(t.p,{x:0,y:0,width:s,height:s}):{x:t.p.x*k,y:t.p.y*k};
+   const x=target.x+dx,y=target.y+dy,image=this.asset('FG-TOKEN-'+t.color);
    if(image)c.drawImage(image,x-9,y-9,18,18);else{c.fillStyle=HEX[t.color];c.strokeStyle='#283748';c.beginPath();c.arc(x,y,8,0,Math.PI*2);c.fill();c.stroke();}
    c.fillStyle='#283748';c.font='10px sans-serif';c.textAlign='center';c.fillText(String(t.piece+1),x,y+3);
    if(this.data.myTurn&&this.data.legal.includes(t.piece)&&t.player===g.turn){c.lineWidth=2;c.beginPath();c.arc(x,y,12,0,Math.PI*2);c.stroke();this.hit.push({x,y,piece:t.piece});}
   }));
-  if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image)c.drawImage(image,s/2-32,s/2-32,64,64);}
+  if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image){c.save();c.translate(s/2,s/2);c.rotate((this.diceFrame||0)*Math.PI/4);c.drawImage(image,-32,-32,64,64);c.restore();}}
  },
  boardTap(e){if(this.data.busy||this.data.pending||this.data.rolling||!this.data.myTurn||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<20)this.command('move',{piece:sorted[0].piece});},
  animateDie(){clearTimeout(this.animation);this.setData({rolling:true});this.diceFrame=0;const frame=()=>{if(this.hidden||this.destroyed)return;this.draw();this.diceFrame++;if(this.diceFrame<16)this.animation=setTimeout(frame,80);else{this.setData({rolling:false});this.draw();}};frame();}

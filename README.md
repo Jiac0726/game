@@ -27,7 +27,7 @@
 
 当前 `baseUrl` 已配置为 CloudBase 静态托管地址：`https://gskj-d7gp86qo88751cc06-1345665452.tcloudbaseapp.com/gamecenter/game-assets/v1`。上传目录包含 `/gamecenter/game-assets/v1`，不要遗漏 `/gamecenter`，也不要再追加一层 `assets`。联机小程序 `online/miniprogram/config.js` 使用相同素材地址，联机云环境 `envId` 保持原配置。
 
-2026-10-12 上传包包含原素材库和 Canva 最新三页的拆分素材，拆分目录为 `assets/CANVA_SPLIT_20261012/`。它不包含代码引用的 `assets/FLYING/FG-*` 文件；这些文件仍需从飞行棋独立包补充上传。Canva 拆分图层没有自动替换 `FG-*` 映射。
+2026-10-12 上传包包含原素材库和 Canva 最新三页的拆分素材，拆分目录为 `assets/CANVA_SPLIT_20261012/`。飞行棋现保留 `FG-*` 逻辑 ID，但图片路径已替换为这些已上传的 Canva 图层，不再请求旧 `assets/FLYING/` 目录。棋盘、四方机场、头像、按钮和四种单枚飞机图标均使用新图；客户端单独校准绘制坐标，不改变服务器规则和进度。16 个骰子帧 ID 共享一张 PNG，通过旋转表现滚动，最终点数仍由真实游戏状态绘制，并非16张独立动画帧。
 
 本地临时验证：把素材包中的 `assets/` 解压到项目根目录，将 `useLocalAssets` 设为 `true`。图片目录已在 `.gitignore` 中排除，正式配置改回远程地址。开发工具上传本地模式时会包含图片，请自行检查包大小。
 

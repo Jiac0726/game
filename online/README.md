@@ -5,7 +5,7 @@
 ## 部署
 
 1. 把 `project.config.json` 的 `appid` 换成自己的小程序 AppID，开通该 AppID 的云开发环境。
-2. `miniprogram/config.js` 已配置素材父目录 `https://gskj-d7gp86qo88751cc06-1345665452.tcloudbaseapp.com/gamecenter/game-assets/v1`，`envId` 保留现有联机云环境（素材托管环境可以与联机云环境不同）。换云环境时再修改 `envId`。将飞行棋素材包的 `assets/FLYING/` 上传至该 HTTPS 地址；在小程序后台配置合法下载域名。未填素材地址时采用 Canvas 绘制棋盘和棋子，规则仍可用。
+2. `miniprogram/config.js` 已配置素材父目录 `https://gskj-d7gp86qo88751cc06-1345665452.tcloudbaseapp.com/gamecenter/game-assets/v1`，`envId` 保留现有联机云环境（素材托管环境可以与联机云环境不同）。换云环境时再修改 `envId`。飞行棋图片引用现指向已上传的 `assets/CANVA_SPLIT_20261012/`，无需再上传旧 `assets/FLYING/` 目录；在小程序后台配置合法下载域名。未填素材地址时采用 Canvas 绘制棋盘和棋子，规则仍可用。
 3. 云开发数据库新建 `flying_rooms` 集合，权限设为自定义 `{ "read": false, "write": false }`，仅云函数访问；示例见 `database.rules.json`。不要开放客户端直接读写。
 4. 右键 `cloudfunctions/flyingRoom` → 上传并部署（云端安装依赖）。云函数使用 Node.js 18 或更新的可用运行时；超时设为至少10秒。在同一云环境部署，并检查事务权限。
 5. 四个微信账号加入体验成员，上传体验版；房主建房→点击邀请好友→三人打开同一分享卡片加入→四人准备→房主开始。

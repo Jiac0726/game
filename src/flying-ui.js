@@ -1,6 +1,7 @@
 'use strict';
 const { Flying } = require('./flying-model');
 const PATHS = require('./flying-paths');
+const artLayout = require('./flying-art-layout');
 const COLOR = {Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
 const NAME = {Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
 function install(App) {
@@ -55,22 +56,27 @@ function install(App) {
     const bx=9,by=183,size=357,scale=size/PATHS.width;
     const players={Y:[15,120],B:[280,120],R:[15,547],G:[280,547]};
     g.colors.forEach((color,i)=>{const [x,y]=players[color];this.rect(x,y,80,52,i===g.turn?COLOR[color]:'#FFFCF3');this.flyingArt('FG-AVATAR-'+color,x+3,y+3,43,43);this.text(NAME[color],x+61,y+18,12,'#283748','center',true);this.text(g.pieces[i].filter(n=>n===57).length+'/4',x+61,y+37,11,'#283748','center');});
-    if(!this.flyingArt('FG-BOARD-001',bx,by,size,size)) {
+    const boardArt=this.drawAsset('FG-BOARD-001',bx,by,size,size);
+    const boardBounds=boardArt.bounds;
+    if(boardArt.status!=='ready') {
       this.rect(bx,by,size,size,'#FFFCF3');
       PATHS.ring.forEach((node,i)=>this.rect(bx+node.x*scale-7,by+node.y*scale-7,14,14,Object.values(COLOR)[i%4],2));
       Object.keys(PATHS.colors).forEach(color=>PATHS.colors[color].home.forEach(node=>this.rect(bx+node.x*scale-7,by+node.y*scale-7,14,14,COLOR[color],2)));
     }
+    if(boardArt.status==='ready') for(const color of g.colors){const a=artLayout.airportBounds(color,boardBounds);this.flyingArt('FG-AIRPORT-'+color,a.x,a.y,a.width,a.height);}
     const legal=this.flyingRolling?[]:g.legal();
     g.colors.forEach((color,player)=>g.pieces[player].forEach((progress,piece)=>{
       if(progress===57)return;
-      const point=g.position(player,piece),x=bx+point.x*scale,y=by+point.y*scale;
+      const point=g.position(player,piece),target=boardArt.status==='ready'?artLayout.project(point,boardBounds):{x:bx+point.x*scale,y:by+point.y*scale},x=target.x,y=target.y;
       if(!this.flyingArt('FG-TOKEN-'+color,x-9,y-9,18,18)){this.circle(x,y,8,COLOR[color]);this.text(piece+1,x,y,9,'#283748','center',true);}
       if(player===g.turn&&legal.includes(piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;this.ctx.beginPath();this.ctx.arc(x,y,11,0,Math.PI*2);this.ctx.stroke();}
     }));
     const fx=123,fy=603;
     if(this.flyingRolling>0) {
       const frame=Math.min(15,Math.floor((1.28-this.flyingRolling)/.08));
-      if(!this.flyingArt('FG-DICE-'+String(frame).padStart(2,'0'),fx,fy,64,64))this.drawFlyingDie(fx,fy,64,1+(frame%6));
+      this.ctx.save();this.ctx.translate(fx+32,fy+32);this.ctx.rotate(frame*Math.PI/4);
+      const ready=this.flyingArt('FG-DICE-'+String(frame).padStart(2,'0'),-32,-32,64,64);this.ctx.restore();
+      if(!ready)this.drawFlyingDie(fx,fy,64,1+(frame%6));
       this.text('骰子滚动中…',250,635,14,'#283748','center');
     } else {
       this.drawFlyingDie(fx,fy,64,g.die||1);
