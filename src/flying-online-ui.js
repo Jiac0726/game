@@ -38,7 +38,7 @@ function install(App){
  p.flyingRoomView=function(){
   const client=this.onlineClient(),r=client.room;
   this.backHeader('好友飞行棋',r?'四人联机 · 同一房间':'正在连接房间…',()=>this.leaveOnlineFlying());
-  if(!r){this.text(client.error||'正在连接云端…',187,270,15,'#283748','center');if(!client.busy)this.button('返回飞行棋',24,420,327,48,()=>this.go('flyingSetup'));return;}
+  if(!r){this.text(client.error||'正在连接云端…',187,270,15,'#283748','center');if(/云服务未开通/.test(client.error)){this.text('请先开通云开发并关联当前小游戏',187,310,13,'#778079','center');this.text('也可以返回使用同机轮流试玩',187,338,13,'#778079','center');}if(!client.busy)this.button('返回飞行棋',24,420,327,48,()=>this.go('flyingSetup'));return;}
   if(r.status==='closed'){this.text('房间已关闭',187,260,22,'#283748','center');this.button('返回派对',24,430,327,48,()=>this.go('flyingSetup'));return;}
   const count=r.seats.filter(Boolean).length;
   if(r.status==='waiting'){

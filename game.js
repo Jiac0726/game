@@ -2,10 +2,7 @@ const { App } = require('./src/app');
 const canvas = wx.createCanvas();
 const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync();
 const app = new App(canvas, info, wx);
-const cloudConfig = require('./src/cloud-config');
-try {
-  if (wx.cloud && cloudConfig.envId) wx.cloud.init({ env: cloudConfig.envId });
-} catch (e) { app.toast('云环境初始化失败，请检查小游戏 AppID 与环境关联'); }
+// Cloud is initialized lazily by the online client. Offline games need no cloud scope.
 const assetConfig = require('./src/asset-config');
 const { createAssetFiles } = require('./src/asset-source');
 app.setAssetFiles(createAssetFiles(assetConfig));

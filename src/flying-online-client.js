@@ -16,13 +16,25 @@ class FlyingOnlineClient {
     let timer;
     try {
       const response=await Promise.race([
-        this.platform.cloud.callFunction({name:this.config.functionName,data:{...data,action},config:{env:this.config.envId}}),
+        this.invokeCloud(action,data),
         new Promise((_,reject)=>{timer=this.timers.setTimeout(()=>reject(new Error('网络超时，可同步或重试')),15000);})
       ]);
       const result=response&&response.result;
       if(!result||!result.ok){const e=new Error(result&&result.message||'服务暂不可用');e.code=result&&result.code;throw e;}
       return result;
+    } catch(e){
+      const message=String(e&& (e.message||e.errMsg)||e);
+      if(/invalid scope|没有权限|未开通|请先开通|无权限/i.test(message))throw new Error('云服务未开通或未关联小游戏 AppID');
+      throw e;
     } finally {if(timer)this.timers.clearTimeout(timer);}
+  }
+  async invokeCloud(action,data){
+    const cloud=this.platform.cloud;
+    if(!this.cloudInitialized&&typeof cloud.init==='function'){
+      await cloud.init({env:this.config.envId});
+      this.cloudInitialized=true;
+    }
+    return cloud.callFunction({name:this.config.functionName,data:{...data,action},config:{env:this.config.envId}});
   }
   accept(result) {
     const room=result.room;

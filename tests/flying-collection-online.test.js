@@ -63,3 +63,7 @@ test('invalid settings are rejected and existing rooms keep original defaults',(
  const room=createRoom(id,'a','',0);delete room.settings;assert.deepEqual(view(room,'a').settings,{launch:'246',turnSeconds:60,extraTurn:true});
  for(const seconds of [30,60,90])assert.equal(createRoom(id,'a','',0,{turnSeconds:seconds}).settings.turnSeconds,seconds);
 });
+test('cloud init is lazy and permission denial is a readable room error',async()=>{
+ let init=0,invoke=0;const platform={getStorageSync:()=>null,setStorageSync:()=>{},cloud:{init:async()=>{init++;throw Error('invalid scope 没有权限，请先开通云服务');},callFunction:async()=>{invoke++;}}};
+ const c=new FlyingOnlineClient(platform,{envId:'test'},()=>{},timer);assert.equal(init,0);assert.equal(await c.enter('create'),false);assert.equal(init,1);assert.equal(invoke,0);assert.match(c.error,/云服务未开通或未关联小游戏 AppID/);c.stop();
+});
