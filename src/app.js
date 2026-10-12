@@ -65,6 +65,7 @@ require('./layout').install(App);
 // Installed last so its scene-aware share() replaces the earlier generic one.
 require('./share-cards').install(App);
 // 分享落地页需要按 id 反查游戏定义，这里把列表交给原型。
+require('./flying-online-ui').install(App);
 App.prototype.games=GAMES;
 App.prototype.colors=C;
 module.exports={App,GAMES};

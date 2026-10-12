@@ -24,7 +24,7 @@ test('party entry opens setup and board; rolling blocks moves; pause freezes ani
   const {App}=require('../src/app');const ctx=new Proxy({measureText:s=>({width:s.length*9})},{get:(o,k)=>o[k]||(()=>{}),set:(o,k,v)=>(o[k]=v,true)});
   for(const [w,h] of [[320,568],[375,812],[430,932]]){
     const a=new App({getContext:()=>ctx},{windowWidth:w,windowHeight:h},{getStorageSync:()=>null,setStorageSync:()=>{}});
-    a.render();a.mode='派对';a.render();a.buttons.find(b=>b.label==='一起玩飞行棋').fn();assert.equal(a.screen,'flyingSetup');a.render();a.buttons.find(b=>b.label==='开始飞行棋').fn();a.render();assert.equal(a.screen,'flyingBoard');
+    a.render();a.mode='派对';a.render();a.buttons.find(b=>b.label==='一起玩飞行棋').fn();assert.equal(a.screen,'flyingSetup');a.render();a.buttons.find(b=>b.label==='同机轮流试玩').fn();a.render();a.buttons.find(b=>b.label==='开始飞行棋').fn();a.render();assert.equal(a.screen,'flyingBoard');
     a.flying.random=()=>.99;a.rollFlying();a.render();assert.ok(!a.buttons.some(b=>b.label.startsWith('飞机 ')));a.pause();a.update(.5);assert.equal(a.flyingRolling,1.28);a.paused=false;a.update(1.28);a.render();assert.equal(a.buttons.filter(b=>b.label.startsWith('飞机 ')).length,4);
     for(const b of a.buttons)assert.ok(b.x>=0&&b.y>=0&&b.x+b.w<=375&&b.y+b.h<=812);
   }

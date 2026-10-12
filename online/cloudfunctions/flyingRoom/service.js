@@ -34,7 +34,7 @@ function apply(original,uid,e,now,random){
    if(room.host!==uid)fail('HOST','只有房主可以开始');
    if(e.action==='start'&&room.status!=='waiting'||e.action==='rematch'&&room.status!=='done')fail('PHASE','当前不能开局');
    if(!room.seats.every(p=>p&&(e.action==='rematch'||p.ready)))fail('NOT_READY','需要四人到齐并准备');
-   room.game=state(new Flying(4));room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;
+   const game=new Flying(4);game.colors=room.seats.map(p=>p.color);room.game=state(game);room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;
   }else{
    if(room.status!=='playing')fail('PHASE','对局尚未开始或已经结束');
    const g=hydrate(room.game,random);
