@@ -1,12 +1,13 @@
 const {Flying}=require('./lib/flying-model');
+const {normalizeSettings}=require('./lib/flying-rules');
 const COLORS=['R','Y','B','G'];
-const TTL=24*60*60*1000, TURN_MS=60000;
+const TTL=24*60*60*1000;
 function fail(code,message){const e=new Error(message);e.code=code;throw e;}
 function cleanName(name){return typeof name==='string'?name.trim().slice(0,12):'';}
 function member(uid,name,seat){return {uid,name:cleanName(name)||('玩家'+(seat+1)),ready:false,color:COLORS[seat]};}
-function createRoom(id,uid,name,now){return {id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',game:null,revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null};}
+function createRoom(id,uid,name,now,settings){let rules;try{rules=normalizeSettings(settings);}catch(_){fail('SETTINGS','房间设置无效');}return {settings:rules,id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',game:null,revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null};}
 function hydrate(state,random){return Object.assign(new Flying(4,random),state);}
-function state(g){return {colors:g.colors,pieces:g.pieces,turn:g.turn,phase:g.phase,die:g.die,winner:g.winner};}
+function state(g){return {rules:g.rules,colors:g.colors,pieces:g.pieces,turn:g.turn,phase:g.phase,die:g.die,winner:g.winner};}
 function apply(original,uid,e,now,random){
  const room=JSON.parse(JSON.stringify(original));
  if(now>=room.expiresAt)fail('EXPIRED','房间已过期，请重新建房');
@@ -34,7 +35,7 @@ function apply(original,uid,e,now,random){
    if(room.host!==uid)fail('HOST','只有房主可以开始');
    if(e.action==='start'&&room.status!=='waiting'||e.action==='rematch'&&room.status!=='done')fail('PHASE','当前不能开局');
    if(!room.seats.every(p=>p&&(e.action==='rematch'||p.ready)))fail('NOT_READY','需要四人到齐并准备');
-   const game=new Flying(4);game.colors=room.seats.map(p=>p.color);room.game=state(game);room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;
+   const game=new Flying(4);game.colors=room.seats.map(p=>p.color);game.rules=normalizeSettings(room.settings);room.game=state(game);room.status='playing';room.deadline=now+normalizeSettings(room.settings).turnSeconds*1000;room.lastRoll=null;
   }else{
    if(room.status!=='playing')fail('PHASE','对局尚未开始或已经结束');
    const g=hydrate(room.game,random);
@@ -52,11 +53,11 @@ function apply(original,uid,e,now,random){
      if(!Number.isInteger(e.piece)||!g.move(e.piece))fail('MOVE','这架飞机当前不能移动');
     }else fail('ACTION','未知操作');
    }
-   room.game=state(g);room.status=g.phase==='done'?'done':'playing';room.deadline=now+TURN_MS;
+   room.game=state(g);room.status=g.phase==='done'?'done':'playing';room.deadline=now+normalizeSettings(room.settings).turnSeconds*1000;
   }
   room.seen.push({uid,id:e.requestId});room.seen=room.seen.slice(-64);
  }
  room.revision++;return room;
 }
-function view(room,uid){const seat=room.seats.findIndex(p=>p&&p.uid===uid);return {id:room.id,seats:room.seats.map(p=>p?{name:p.name,ready:p.ready,color:p.color}:null),seat,isHost:room.host===uid,status:room.status,game:room.game,revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,lastRoll:room.lastRoll};}
+function view(room,uid){const seat=room.seats.findIndex(p=>p&&p.uid===uid);return {settings:normalizeSettings(room.settings),id:room.id,seats:room.seats.map(p=>p?{name:p.name,ready:p.ready,color:p.color}:null),seat,isHost:room.host===uid,status:room.status,game:room.game,revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,lastRoll:room.lastRoll};}
 module.exports={createRoom,apply,view};

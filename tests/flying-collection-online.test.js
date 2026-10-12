@@ -4,7 +4,7 @@ const {FlyingOnlineClient}=require('../src/flying-online-client');
 const {createRoom,apply,view}=require('../cloudfunctions/flyingRoom/service');
 const {App}=require('../src/app');
 const id='a'.repeat(32),timer={setTimeout:()=>1,clearTimeout:()=>{}};
-function server(){let room;return {platform(uid){const storage={};return {getStorageSync:k=>storage[k],setStorageSync:(k,v)=>storage[k]=JSON.parse(JSON.stringify(v)),removeStorageSync:k=>delete storage[k],cloud:{callFunction:async({data})=>{try{if(data.action==='create')room=createRoom(id,uid,'',Date.now());else room=apply(room,uid,data,Date.now(),()=>.99);return {result:{ok:true,room:view(room,uid),serverNow:Date.now()}};}catch(e){return {result:{ok:false,code:e.code,message:e.message}};}}}};},room:()=>room};}
+function server(){let room;return {platform(uid){const storage={};return {getStorageSync:k=>storage[k],setStorageSync:(k,v)=>storage[k]=JSON.parse(JSON.stringify(v)),removeStorageSync:k=>delete storage[k],cloud:{callFunction:async({data})=>{try{if(data.action==='create')room=createRoom(id,uid,'',Date.now(),data.settings);else room=apply(room,uid,data,Date.now(),()=>.99);return {result:{ok:true,room:view(room,uid),serverNow:Date.now()}};}catch(e){return {result:{ok:false,code:e.code,message:e.message}};}}}};},room:()=>room};}
 test('four collection clients prepare and play; uncertain commands retain their request ID',async()=>{
  const s=server(),clients=['a','b','c','d'].map(uid=>new FlyingOnlineClient(s.platform(uid),{envId:'test',functionName:'flyingRoom'},()=>{},timer));
  assert.equal(await clients[0].enter('create'),true);for(const c of clients.slice(1))assert.equal(await c.enter('join',id),true);
@@ -40,4 +40,26 @@ test('closing the room screen ignores late network responses',async()=>{
 test('root deploy project is a MiniGame and contains the authoritative cloud function',()=>{
  const config=require('../project.config.json');assert.equal(config.compileType,'game');assert.equal(config.cloudfunctionRoot,'cloudfunctions/');
  assert.ok(require('../cloudbaserc.json').functions.some(f=>f.name==='flyingRoom'));
+});
+
+test('selected room rules are transmitted, enforced by server and retained for rematches',async()=>{
+ const settings={launch:'6',turnSeconds:30,extraTurn:false},s=server();
+ const clients=['a','b','c','d'].map(uid=>new FlyingOnlineClient(s.platform(uid),{envId:'test',functionName:'flyingRoom'},()=>{},timer));
+ await clients[0].enter('create',undefined,settings);assert.deepEqual(clients[0].room.settings,settings);
+ for(const c of clients.slice(1))await c.enter('join',id);
+ for(const c of clients){await c.sync();await c.command('ready');assert.deepEqual(c.room.settings,settings);}
+ await clients[0].sync();await clients[0].command('start');assert.deepEqual(s.room().game.rules,settings);
+ const now=Date.now();assert.ok(s.room().deadline>=now+29000&&s.room().deadline<=now+31000);
+ let room=s.room();room=apply(room,'a',{action:'roll',revision:room.revision,requestId:'roll_two_1'},now,()=>.2);
+ assert.equal(room.game.die,2);assert.equal(room.game.turn,1); // No takeoff at two.
+ room=apply(room,'b',{action:'roll',revision:room.revision,requestId:'roll_six_2'},now,()=>.99);
+ room=apply(room,'b',{action:'move',piece:0,revision:room.revision,requestId:'move_six_3'},now,()=>.99);
+ assert.equal(room.game.pieces[1][0],0);assert.equal(room.game.turn,2); // Six does not grant another roll.
+ room.status='done';room=apply(room,'a',{action:'rematch',revision:room.revision,requestId:'rematch_4'},now,()=>.99);assert.deepEqual(room.game.rules,settings);
+ for(const c of clients)c.stop();
+});
+test('invalid settings are rejected and existing rooms keep original defaults',()=>{
+ for(const settings of [{launch:'1'},{turnSeconds:0},{turnSeconds:'60'},{extraTurn:'yes'},null])assert.throws(()=>createRoom(id,'a','',0,settings),e=>e.code==='SETTINGS');
+ const room=createRoom(id,'a','',0);delete room.settings;assert.deepEqual(view(room,'a').settings,{launch:'246',turnSeconds:60,extraTurn:true});
+ for(const seconds of [30,60,90])assert.equal(createRoom(id,'a','',0,{turnSeconds:seconds}).settings.turnSeconds,seconds);
 });

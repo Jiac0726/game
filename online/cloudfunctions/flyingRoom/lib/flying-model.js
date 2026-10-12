@@ -1,15 +1,17 @@
 'use strict';
+const {normalizeSettings}=require('./flying-rules');
 const PATHS = require('./flying-paths');
 const ORDER = ['R', 'Y', 'B', 'G'];
 class Flying {
   constructor(count = 4, random = Math.random) {
     this.colors = count === 2 ? ['R', 'B'] : ORDER.slice(0, Math.max(2, Math.min(4, count)));
     this.pieces = this.colors.map(() => [-1, -1, -1, -1]);
+    this.rules=normalizeSettings();
     this.turn = 0; this.phase = 'roll'; this.die = 0; this.random = random; this.winner = null;
   }
   legal() {
     if (this.phase !== 'choose') return [];
-    return this.pieces[this.turn].map((p, i) => p === -1 ? ([2,4,6].includes(this.die) ? i : -1) : p < 57 && p + this.die <= 57 ? i : -1).filter(i => i >= 0);
+    return this.pieces[this.turn].map((p, i) => p === -1 ? ((this.rules.launch==='6'?[6]:[2,4,6]).includes(this.die) ? i : -1) : p < 57 && p + this.die <= 57 ? i : -1).filter(i => i >= 0);
   }
   roll() {
     if (this.phase !== 'roll') return false;
@@ -18,7 +20,7 @@ class Flying {
     return this.die;
   }
   pass() { if (this.phase !== 'choose' || this.legal().length) return false; this.next(); return true; }
-  next() { if (this.die !== 6) this.turn = (this.turn + 1) % this.colors.length; this.phase = 'roll'; }
+  next() { if (this.die !== 6 || !this.rules.extraTurn) this.turn = (this.turn + 1) % this.colors.length; this.phase = 'roll'; }
   ringIndex(player, progress) { return (PATHS.colors[this.colors[player]].startIndex + progress) % 52; }
   position(player, piece) {
     const p = this.pieces[player][piece], route = PATHS.colors[this.colors[player]];

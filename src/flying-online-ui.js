@@ -3,6 +3,7 @@ const {FlyingOnlineClient,ROOM}=require('./flying-online-client');
 const {Flying}=require('./flying-model');
 const L=require('./ui-layout');
 const artLayout=require('./flying-art-layout');
+const {normalizeSettings,describeSettings}=require('./flying-rules');
 const config=require('./cloud-config');
 const COLOR={Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
 const NAME={Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
@@ -15,7 +16,7 @@ function install(App){
    this.onlineRollSeen=roll?roll.id:null;this.onlineSnapshotSeen=true;
   });return this.onlineFlying;
  };
- p.openOnlineFlying=function(action='join',id){this.onlineRollSeen=null;this.onlineSnapshotSeen=false;this.onlineRolling=0;this.go('flyingRoom');return this.onlineClient().enter(action,id);};
+ p.openOnlineFlying=function(action='join',id){this.onlineRollSeen=null;this.onlineSnapshotSeen=false;this.onlineRolling=0;this.go('flyingRoom');return this.onlineClient().enter(action,id,action==='create'?normalizeSettings(this.flyingRoomSettings):undefined);};
  p.joinFlyingClipboard=function(){
   if(!this.platform.getClipboardData){this.toast('请通过好友的邀请卡片加入');return;}
   this.platform.getClipboardData({success:res=>{const id=String(res.data||'').trim();if(ROOM.test(id))this.openOnlineFlying('join',id);else this.toast('剪贴板中没有完整房间码');},fail:()=>this.toast('未能读取房间码，请通过邀请卡片加入')});
@@ -23,8 +24,10 @@ function install(App){
  p.go=function(screen){if(this.screen==='flyingRoom'&&screen!=='flyingRoom'&&this.onlineFlying)this.onlineFlying.stop();return base.go.call(this,screen);};
  p.flyingSetup=function(){
   this.backHeader('好友飞行棋','四人联机 · 直接在合集里玩',()=>{this.mode='派对';this.go('home');});
-  this.flyingArt('FG-BOARD-001',94,157,187,207);
-  this.text('创建房间，邀请三位好友',187,402,19,'#283748','center',true);
+  const settings=this.flyingRoomSettings||(this.flyingRoomSettings=normalizeSettings());
+  this.selectGroup('起飞点数',[{label:'2 / 4 / 6',value:'246'},{label:'仅 6 点',value:'6'}],settings.launch,174,value=>settings.launch=value);
+  this.selectGroup('每次操作时限',[{label:'30 秒',value:30},{label:'60 秒',value:60},{label:'90 秒',value:90}],settings.turnSeconds,263,value=>settings.turnSeconds=value);
+  this.selectGroup('掷到 6 点',[{label:'再掷一次',value:true},{label:'不连掷',value:false}],settings.extraTurn,352,value=>settings.extraTurn=value);
   this.button('创建四人联机房间',24,439,327,50,()=>this.openOnlineFlying('create'));
   this.button('粘贴房间码加入',24,505,327,48,()=>this.joinFlyingClipboard(),'#BDDDC5','#283748');
   const last=this.onlineClient().stored('collectionFlyingRoom');
@@ -39,7 +42,8 @@ function install(App){
   if(r.status==='closed'){this.text('房间已关闭',187,260,22,'#283748','center');this.button('返回派对',24,430,327,48,()=>this.go('flyingSetup'));return;}
   const count=r.seats.filter(Boolean).length;
   if(r.status==='waiting'){
-   this.text('好友已到齐 '+count+' / 4',187,147,22,'#283748','center',true);
+   this.text('好友已到齐 '+count+' / 4',187,150,19,'#283748','center',true);
+   this.text(describeSettings(r.settings),187,175,11,'#778079','center');
    r.seats.forEach((seat,i)=>{const x=24+i%2*169,y=188+Math.floor(i/2)*128;this.rect(x,y,158,114,seat?COLOR[seat.color]:'#FFFCF3');if(seat)this.flyingArt('FG-AVATAR-'+seat.color,x+8,y+10,52,52);this.text(seat?seat.name:'等待好友',x+79,y+80,15,'#283748','center');this.text(seat?(seat.ready?'已准备':'尚未准备'):'空座位',x+79,y+101,12,'#283748','center');});
    if(count<4)this.button('邀请好友（'+count+' / 4）',24,470,327,48,()=>this.inviteOnlineFlying());else this.text('四位好友已到齐',187,494,16,'#283748','center');
    const mine=r.seats[r.seat];this.onlineButton(mine&&mine.ready?'取消准备':'我准备好了',24,535,327,48,'ready');
@@ -56,6 +60,7 @@ function install(App){
    const grouped={};g.colors.forEach((color,player)=>g.pieces[player].forEach((n,piece)=>{if(n===57)return;const pos=g.position(player,piece),key=pos.x+','+pos.y;(grouped[key]||(grouped[key]=[])).push({color,player,piece,pos});}));
    Object.values(grouped).forEach(group=>group.forEach((t,i)=>{const at=artLayout.project(t.pos,b),x=at.x+(group.length>1?(i%4-1.5)*8:0),y=at.y+(group.length>4?Math.floor(i/4)*8:0);if(!this.flyingArt('FG-TOKEN-'+t.color,x-9,y-9,18,18))this.circle(x,y,8,COLOR[t.color]);this.text(t.piece+1,x,y,9,'#283748','center',true);if(canMove&&t.player===g.turn&&legal.includes(t.piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=2;this.ctx.beginPath();this.ctx.arc(x,y,12,0,Math.PI*2);this.ctx.stroke();this.buttons.push({label:'移动飞机'+(t.piece+1),x:x-18,y:y-18,w:36,h:36,fn:()=>client.command('move',{piece:t.piece})});}}));
    this.drawFlyingDiceState(g.die||1,this.onlineRolling||0);
+   this.text(describeSettings(r.settings),187,187,11,'#778079','center');
    this.text(r.status==='playing'?'剩余 '+client.seconds()+' 秒':'对局结束',245,550,13,'#778079','center');
    if(r.status==='done'){if(r.isHost)this.onlineButton('再开一局',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'rematch');}
    else if(myTurn&&g.phase==='roll')this.onlineButton('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'roll');

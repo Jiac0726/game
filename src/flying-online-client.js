@@ -32,14 +32,14 @@ class FlyingOnlineClient {
     this.store('collectionFlyingRoom',room.id);this.changed();return true;
   }
   stop(){this.active=false;this.epoch++;this.timers.clearTimeout(this.pollTimer);this.pollTimer=null;}
-  async enter(action,roomId) {
+  async enter(action,roomId,settings) {
     if(this.busy)return false;
     if(action!=='create'&&!ROOM.test(roomId||'')){this.error='请复制完整的32位房间码后加入';this.changed();return false;}
     if(this.pending&&(action==='create'||this.pending.roomId!==roomId)){this.error='上一局有待确认操作，请先返回原房间重试';this.changed();return false;}
     this.stop();this.active=true;this.room=null;const epoch=this.epoch;
     this.busy=true;this.error='';this.changed();
     try {
-      const result=await this.call(action,{roomId});
+      const result=await this.call(action,{roomId,...(action==='create'?{settings}: {})});
       if(epoch!==this.epoch)return false;
       this.accept(result);
       const saved=this.stored('collectionFlyingPending');

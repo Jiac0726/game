@@ -7,7 +7,7 @@ exports.main=async(event={})=>{
   const uid=cloud.getWXContext().OPENID;if(!uid)return {ok:false,code:'AUTH',message:'无法获取微信身份'};
   const now=Date.now();
   if(event.action==='create'){
-   const id=crypto.randomBytes(16).toString('hex'),room=createRoom(id,uid,event.name,now);
+   const id=crypto.randomBytes(16).toString('hex'),room=createRoom(id,uid,event.name,now,event.settings);
    await db.collection('flying_rooms').doc(id).set({data:room});return {ok:true,room:view(room,uid),serverNow:now};
   }
   if(!/^[a-f0-9]{32}$/.test(event.roomId||''))return {ok:false,code:'ROOM',message:'房间码无效'};
