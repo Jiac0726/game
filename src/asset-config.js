@@ -1,8 +1,9 @@
 'use strict';
 module.exports = {
-  // Upload the ZIP's assets/ directory unchanged, then set its parent HTTPS URL.
-  // Example: baseUrl = https://your-domain/game-assets/v1
-  baseUrl: '',
-  // Local development only: extract assets/ to the project root (gitignored).
+  // CloudBase static hosting (published 2026-10-12). This is the parent URL of
+  // the uploaded assets/ directory, so asset paths append as <baseUrl>/assets/...
+  baseUrl: 'https://cloud1-d1gw3jjv3de5cd7b1-1493828096.tcloudbaseapp.com/game-assets/v1',
+  // Local development only: extract assets/ to the project root (gitignored),
+  // then set this to true to avoid network round trips while iterating.
   useLocalAssets: false
 };
