@@ -1,0 +1,16 @@
+{
+  "version": "2.0",
+  "envId": "cloud1-d1gw3jjv3de5cd7b1",
+  "functionRoot": "./cloudfunctions",
+  "functions": [
+    {
+      "name": "flyingRoom",
+      "timeout": 20,
+      "memorySize": 256,
+      "runtime": "Nodejs20.19",
+      "installDependency": true,
+      "handler": "index.main",
+      "description": "四人联机飞行棋房间：建房/加入/准备/掷骰/走棋/超时/再来一局"
+    }
+  ]
+}

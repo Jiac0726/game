@@ -9,5 +9,17 @@
     "es6": true,
     "minified": true,
     "urlCheck": true
+  },
+  "packOptions": {
+    "ignore": [
+      {
+        "type": "file",
+        "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "部署记录.md"
+      }
+    ]
   }
 }

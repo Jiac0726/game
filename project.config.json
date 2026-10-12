@@ -16,8 +16,24 @@
         "value": "tests"
       },
       {
+        "type": "folder",
+        "value": "online"
+      },
+      {
+        "type": "folder",
+        "value": ".git"
+      },
+      {
         "type": "file",
         "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "素材接入记录.md"
+      },
+      {
+        "type": "file",
+        "value": "素材接入记录-飞行棋.md"
       }
     ]
   }
