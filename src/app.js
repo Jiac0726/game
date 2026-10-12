@@ -57,11 +57,14 @@ class App{
   if(this.paused){this.buttons=[];this.rect(0,0,375,812,'rgba(17,39,47,.55)',0);this.rect(42,278,291,260,C.white,24);this.text('休息一下',187,322,27,C.ink,'center',true);this.button('继续游戏',66,361,243,45,()=>{this.paused=false;});this.button('重新开始',66,417,243,45,()=>this.start(this.definition.id,this.daily),'#E8EDE5',C.green);this.button('返回大厅',66,476,243,36,()=>{this.screen='home';this.cancel();},C.white,C.muted);}
  }
  result(){const g=this.game;this.header('这一局，很精彩',this.definition.name);this.rect(24,186,327,245,C.white,24);if(this.definition.tag==='双人'){this.text(g.winner?`玩家 ${g.winner} 获胜`:'平局',187,260,35,C.green,'center',true);this.text(this.definition.id==='reaction'?`${g.points[0]} : ${g.points[1]}`:`总共 ${g.moves} 手`,187,328,24,C.ink,'center');}else{this.text(g.score||0,187,268,62,C.green,'center',true);this.text('本局得分',187,325,15,C.muted,'center');this.text(`个人最高 ${this.best[this.definition.id]||0}`,187,370,19,C.ink,'center',true);if(g.score>this.previous)this.text('刷新个人纪录！',187,405,13,C.green,'center');}this.button('再来一局',24,461,327,54,()=>this.start(this.definition.id,this.daily));this.button('分享这次成绩',24,533,327,54,()=>this.share(),'#E0EEE4',C.green);this.button('换个游戏',24,605,327,54,()=>{this.screen='home';this.tab='大厅';},C.white,C.ink);this.text('轻松玩，慢慢进步',187,709,14,C.muted,'center');}
- render(){const c=this.ctx;c.setTransform(this.dpr,0,0,this.dpr,0,0);c.fillStyle=C.bg;c.fillRect(0,0,this.width,this.height);c.translate(this.ox,this.oy);c.scale(this.scale,this.scale);this.buttons=[];if(this.screen==='home')this.home();else if(this.screen==='game')this.gameView();else this.result();if(this.messageTime>0){this.rect(24,96,327,40,C.ink,12);this.text(this.message,187,116,12,C.white,'center');}}
+ render(){const c=this.ctx;c.setTransform(this.dpr,0,0,this.dpr,0,0);c.fillStyle=C.bg;c.fillRect(0,0,this.width,this.height);c.translate(this.ox,this.oy);c.scale(this.scale,this.scale);this.buttons=[];if(this.screen==='home')this.home();else if(this.screen==='game')this.gameView();else if(this.screen==='shareLanding')this.shareLandingView();else this.result();if(this.messageTime>0){this.rect(24,96,327,40,C.ink,12);this.text(this.message,187,116,12,C.white,'center');}}
 }
 require('./interface').install(App,GAMES,M,C);
 require('./flying-ui').install(App);
 require('./layout').install(App);
 // Installed last so its scene-aware share() replaces the earlier generic one.
 require('./share-cards').install(App);
+// 分享落地页需要按 id 反查游戏定义，这里把列表交给原型。
+App.prototype.games=GAMES;
+App.prototype.colors=C;
 module.exports={App,GAMES};

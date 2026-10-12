@@ -61,11 +61,13 @@ Page({
  onShareAppMessage(){
   // Card copy must match the real room state (design guide 3.6): never claim a
   // seat is free once four players are in, and never claim it is full before.
+  // Do not promise spectating either - this page has no read-only mode yet, so a
+  // recipient arriving at a full room can only be turned away.
   const full=this.data.count>=4;
   const playing=this.data.room&&(this.data.room.status==='playing'||this.data.room.status==='done');
   const card={path:'/pages/room/room?roomId='+this.roomId};
   card.title=(full||playing)
-   ?'这局手绘飞行棋四人都到齐了，点进来围观'
+   ?'这局手绘飞行棋四人已经到齐'
    :'来玩手绘飞行棋！四人房间还差 '+(4-this.data.count)+' 人';
   // art() returns '' when no asset host is configured; omit imageUrl then so
   // WeChat falls back to its own screenshot instead of receiving an empty URL.

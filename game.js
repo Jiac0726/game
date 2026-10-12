@@ -14,7 +14,12 @@ wx.onTouchMove(e => e.changedTouches.forEach(t => app.pointer('move', t.clientX,
 wx.onTouchEnd(e => e.changedTouches.forEach(t => app.pointer('up', t.clientX, t.clientY, t.identifier)));
 wx.onTouchCancel(() => app.cancel());
 wx.onHide(() => app.pause());
-wx.onShow(() => app.resetClock());
+wx.onShow(options => { app.resetClock(); app.handleShareEntry(options && options.query); });
+// 分享卡片的落地：启动时就要接住参数，否则接收者会落到大厅（设计指南 3.6）。
+try {
+  const launch = wx.getLaunchOptionsSync ? wx.getLaunchOptionsSync() : null;
+  app.handleShareEntry(launch && launch.query);
+} catch (e) { /* 老版本基础库拿不到启动参数，退化为普通启动 */ }
 // shareTimeline 一并开启：微信要求二者同开，否则 onShareTimeline 不生效。
 wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
 // 右上角菜单转发与游戏内「分享」按钮共用同一份场景化内容（设计指南 3.6 一致性）。

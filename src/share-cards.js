@@ -43,6 +43,15 @@ const PATHS = {
   hub: () => '?from=share'
 };
 
+// 卡片文案里的成绩随路径一起带过去，落地页才能"呼应卡片"而不是措辞一致而已（3.6）。
+// 只带分数这一类展示值，不带任何可用于发奖的字段。
+const LANDING_SCORE = {
+  duel: null,
+  milestone: (x) => x.score,
+  daily: (x) => x.score,
+  hub: null
+};
+
 function install(App) {
   const p = App.prototype;
 
@@ -85,12 +94,99 @@ function install(App) {
       title = COPY.daily({ name: def.name, score, best });
     }
 
+    const shareScore = LANDING_SCORE[scene] ? LANDING_SCORE[scene](context) : null;
+    const path = shareScore ? `${PATHS.game(def.id)}&score=${shareScore}` : PATHS.game(def.id);
+
     return {
       title,
       imageUrl: this.shareImage(SHARE_IMAGES[def.id] || SHARE_IMAGES.collection),
-      path: PATHS.game(def.id),
+      path,
       scene
     };
+  };
+
+  /**
+   * 解析本次启动的分享来源（3.6 要求落地内容与卡片呼应）。
+   * @returns {{fromShare:boolean, gameId:string|null, view:string|null, score:number|null}}
+   */
+  p.parseShareEntry = function (query) {
+    const q = query || {};
+    const score = Number(q.score);
+    return {
+      fromShare: q.from === 'share',
+      gameId: typeof q.game === 'string' && q.game ? q.game : null,
+      view: typeof q.view === 'string' && q.view ? q.view : null,
+      score: Number.isFinite(score) && score > 0 ? score : null
+    };
+  };
+
+  /**
+   * 落地页：接住分享参数，让接收者先看到卡片上提到的内容，再给入口（3.6）。
+   * 不直接开局，避免接收者还没看清就被推进一局。
+   * @returns {boolean} 是否接管了本次落地
+   */
+  p.shareLanding = function (query) {
+    const entry = this.parseShareEntry(query);
+    if (!entry.fromShare) return false;
+
+    const def = entry.gameId ? this.definitionFor(entry.gameId) : null;
+    // 合集/大厅分享：直接回玩法大厅，无需额外引导
+    if (!def) {
+      this.screen = 'home';
+      this.tab = '玩法';
+      return true;
+    }
+    this.landing = {
+      gameId: def.id,
+      name: def.name,
+      score: entry.score,
+      challenge: entry.view === 'challenge'
+    };
+    this.screen = 'shareLanding';
+    return true;
+  };
+
+  /** 按 id 找游戏定义（GAMES 在 app.js 里，原型上没挂，用构造函数注入的列表）。 */
+  p.definitionFor = function (id) {
+    const list = this.games || [];
+    return list.find((g) => g.id === id) || null;
+  };
+
+  /**
+   * 启动/回前台时的分享参数入口。同时处理两种落地：
+   *   - 小游戏：卡片 path 的 query 直接带过来
+   *   - 小程序（online/）：卡片 path 是页面路径，不走这里
+   */
+  p.handleShareEntry = function (query) {
+    if (!query) return false;
+    return this.shareLanding(query);
+  };
+
+  /** 分享落地页的渲染。单独成函数，便于测试与主题覆写。 */
+  p.shareLandingView = function () {
+    const L = this.landing || {};
+    const C = this.colors || {};
+    this.header('朋友分享给你', L.name || '玩一会儿');
+    this.rect(24, 186, 327, 245, C.white || '#FFFCF3', 24);
+    this.text('你的朋友在', 187, 244, 16, C.muted || '#738079', 'center');
+    this.text(L.name || '', 187, 288, 30, C.ink || '#283748', 'center', true);
+    if (L.score) {
+      this.text(L.score, 187, 352, 48, C.green || '#497F76', 'center', true);
+      this.text('拿了这个分数', 187, 400, 14, C.muted || '#738079', 'center');
+    } else {
+      this.text('等你来一局', 187, 366, 22, C.ink || '#283748', 'center', true);
+    }
+    this.button('我也玩一局', 24, 461, 327, 54, () => {
+      const id = L.gameId;
+      this.landing = null;
+      this.start(id);
+    });
+    this.button('先看看别的', 24, 533, 327, 54, () => {
+      this.landing = null;
+      this.screen = 'home';
+      this.tab = '玩法';
+    }, C.white || '#FFFCF3', C.ink || '#283748');
+    this.text('同一款游戏，刷新你自己的纪录', 187, 709, 14, C.muted || '#738079', 'center');
   };
 
   /** 把素材 ID 解析成真实 URL；未配置素材时返回 undefined 而不是空串。 */
