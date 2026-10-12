@@ -1,7 +1,7 @@
 'use strict';
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const paths = require('../src/asset-files');
+const paths = {...require('../src/asset-files'),...require('../src/shared-ui-assets').files};
 const catalog = require('../src/asset-catalog');
 const { createAssetFiles } = require('../src/asset-source');
 

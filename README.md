@@ -95,3 +95,17 @@ node --test tests/*.test.js
 ## 旧的独立四人联机小程序入口
 
 新增 `online/`，在微信开发者工具单独导入此目录。固定四个微信账号在线同局，建房后原生分享邀请、四人准备、房主开局、云端骰子和走棋、断线恢复、超时跳过。部署步骤见 [online/README.md](online/README.md)。需要自己的小程序 AppID、云开发环境及素材 HTTPS 地址；当前提交包含可部署源码，没有部署到真实云环境。
+
+## 共用手绘界面与 HTML 预览
+
+旧 HTML 的 21 个页面继续使用同一份 `src/interface.js`、游戏模型和交互逻辑。`src/shared-ui.js` 统一纸张、装饰、标题、返回、导航、按钮和弹窗；`src/ui-layout.js` 固定 375 × 812 设计坐标。浏览器与微信都按相同比例缩放并居中，绘制与点击使用相同坐标。飞行棋同机和联机共用棋盘、骰子与操作区尺寸。
+
+生成可试玩的浏览器预览（直接打包小游戏源码，不维护第二套界面）：
+
+```bash
+node tools/build-shared-preview.js /tmp/game-preview.html
+# 可选第三参数：本地素材根目录，内部应有 assets/，可内嵌基础界面、游戏图标和飞行棋素材
+node tools/build-shared-preview.js /tmp/game-preview.html /path/to/game-assets/v1
+```
+
+浏览器提供旧版 21 页及 3 个飞行棋页面；联机功能需微信云环境，预览中的同机游戏可直接试玩。导入微信开发者工具时仍选择仓库根目录。

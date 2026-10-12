@@ -1,6 +1,7 @@
 'use strict';
 const {FlyingOnlineClient,ROOM}=require('./flying-online-client');
 const {Flying}=require('./flying-model');
+const L=require('./ui-layout');
 const artLayout=require('./flying-art-layout');
 const config=require('./cloud-config');
 const COLOR={Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
@@ -47,24 +48,24 @@ function install(App){
    this.button('刷新房间',193,669,158,44,()=>client.sync(),'#FFFCF3','#283748');
   }else if(r.game){
    const g=Object.assign(new Flying(4),r.game),myTurn=r.status==='playing'&&g.turn===r.seat,legal=myTurn?g.legal():[];
-   this.text(r.status==='done'?NAME[g.colors[g.winner]]+'获胜！':'轮到 '+r.seats[g.turn].name,187,106,19,'#283748','center',true);
-   const result=this.drawAsset('FG-BOARD-001',9,156,357,357),b=result.bounds;
+   this.text(r.status==='done'?NAME[g.colors[g.winner]]+'获胜！':'轮到 '+r.seats[g.turn].name,187,157,19,'#283748','center',true);
+   const result=this.drawAsset('FG-BOARD-001',L.flying.board.x,L.flying.board.y,L.flying.board.width,L.flying.board.height),b=result.bounds;
    if(result.status!=='ready'){const paths=require('./flying-paths');for(const point of paths.ring){const at=artLayout.project(point,b);this.rect(at.x-6,at.y-6,12,12,'#BDDDC5',2);}}
    if(result.status==='ready')for(const color of g.colors){const a=artLayout.airportBounds(color,b);this.flyingArt('FG-AIRPORT-'+color,a.x,a.y,a.width,a.height);}
    const canMove=myTurn&&!client.busy&&!client.pending&&!this.onlineRolling;
    const grouped={};g.colors.forEach((color,player)=>g.pieces[player].forEach((n,piece)=>{if(n===57)return;const pos=g.position(player,piece),key=pos.x+','+pos.y;(grouped[key]||(grouped[key]=[])).push({color,player,piece,pos});}));
    Object.values(grouped).forEach(group=>group.forEach((t,i)=>{const at=artLayout.project(t.pos,b),x=at.x+(group.length>1?(i%4-1.5)*8:0),y=at.y+(group.length>4?Math.floor(i/4)*8:0);if(!this.flyingArt('FG-TOKEN-'+t.color,x-9,y-9,18,18))this.circle(x,y,8,COLOR[t.color]);this.text(t.piece+1,x,y,9,'#283748','center',true);if(canMove&&t.player===g.turn&&legal.includes(t.piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=2;this.ctx.beginPath();this.ctx.arc(x,y,12,0,Math.PI*2);this.ctx.stroke();this.buttons.push({label:'移动飞机'+(t.piece+1),x:x-18,y:y-18,w:36,h:36,fn:()=>client.command('move',{piece:t.piece})});}}));
-   if(this.onlineRolling){const frame=Math.floor((1.28-this.onlineRolling)/.08);this.ctx.save();this.ctx.translate(71,573);this.ctx.rotate(frame*Math.PI/4);this.flyingArt('FG-DICE-00',-30,-30,60,60);this.ctx.restore();}else this.drawFlyingDie(41,543,60,g.die||1);
-   this.text(r.status==='playing'?'剩余 '+client.seconds()+' 秒':'对局结束',245,540,13,'#778079','center');
-   if(r.status==='done'){if(r.isHost)this.onlineButton('再开一局',132,560,219,48,'rematch');}
-   else if(myTurn&&g.phase==='roll')this.onlineButton('掷骰子',132,560,219,48,'roll');
-   else this.text(myTurn?'点击高亮飞机移动':'等待好友操作',245,583,14,'#283748','center');
-   if(canMove&&g.phase==='choose')legal.forEach((piece,i)=>this.onlineButton('飞机 '+(piece+1),24+i*83,625,77,44,'move',{piece}));
+   if(this.onlineRolling){const frame=Math.floor((1.28-this.onlineRolling)/.08);this.ctx.save();this.ctx.translate(71,593);this.ctx.rotate(frame*Math.PI/4);this.flyingArt('FG-DICE-00',-30,-30,60,60);this.ctx.restore();}else this.drawFlyingDie(L.flying.dice.x,L.flying.dice.y,L.flying.dice.width,g.die||1);
+   this.text(r.status==='playing'?'剩余 '+client.seconds()+' 秒':'对局结束',245,550,13,'#778079','center');
+   if(r.status==='done'){if(r.isHost)this.onlineButton('再开一局',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'rematch');}
+   else if(myTurn&&g.phase==='roll')this.onlineButton('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'roll');
+   else this.text(myTurn?'点击高亮飞机移动':'等待好友操作',245,604,14,'#283748','center');
+   if(canMove&&g.phase==='choose')legal.forEach((piece,i)=>this.onlineButton('飞机 '+(piece+1),L.flying.choices[i].x,L.flying.choices[i].y,L.flying.choices[i].width,L.flying.choices[i].height,'move',{piece}));
    if(r.status==='playing'&&client.seconds()===0)this.onlineButton('跳过超时回合',24,684,327,44,'timeout');
   }
   if(client.pending&&!client.busy)this.button('重试待确认操作',24,735,327,44,()=>client.retry(),'#F39C8C','#283748');
   if(client.error){const msg=String(client.error);this.text(msg.slice(0,23),187,793,11,'#A34232','center');}
-  if(client.busy)this.text('同步中…',187,130,12,'#778079','center');
+  if(client.busy)this.text('同步中…',187,795,12,'#778079','center');
  };
  p.onlineButton=function(label,x,y,w,h,action,extra){const c=this.onlineClient();if(c.busy||c.pending||this.onlineRolling){this.rect(x,y,w,h,'#DDD8CA');this.text(label,x+w/2,y+h/2,14,'#778079','center');}else this.button(label,x,y,w,h,()=>c.command(action,extra));};
  p.leaveOnlineFlying=async function(){const c=this.onlineClient(),r=c.room;if(c.busy){this.toast('正在同步，请稍候');return;}if(c.pending){this.toast('请先确认待处理操作');return;}if(r&&r.status==='waiting'){if(!await c.command('leave'))return;try{this.platform.removeStorageSync('collectionFlyingRoom');}catch(_){}}this.mode='派对';this.go('home');};

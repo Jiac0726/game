@@ -1,6 +1,7 @@
 'use strict';
 const { Flying } = require('./flying-model');
 const PATHS = require('./flying-paths');
+const L=require('./ui-layout');
 const artLayout = require('./flying-art-layout');
 const COLOR = {Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
 const NAME = {Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
@@ -49,13 +50,10 @@ function install(App) {
   };
   p.flyingBoard=function() {
     const g=this.flying;if(!g){this.go('flyingSetup');return;}
-    this.button('‹ 返回',15,24,75,44,()=>{this.flyingExit=true;},'#FFFCF3','#283748');
-    this.text('好友飞行棋',187,48,24,'#283748','center',true);
-    this.button('暂停',285,24,75,44,()=>this.pause(),'#FFFCF3','#283748');
-    this.text(g.winner===null?'轮到'+NAME[g.colors[g.turn]]:NAME[g.colors[g.winner]]+'获胜！',187,96,21,'#283748','center',true);
-    const bx=9,by=183,size=357,scale=size/PATHS.width;
-    const players={Y:[15,120],B:[280,120],R:[15,547],G:[280,547]};
-    g.colors.forEach((color,i)=>{const [x,y]=players[color];this.rect(x,y,80,52,i===g.turn?COLOR[color]:'#FFFCF3');this.flyingArt('FG-AVATAR-'+color,x+3,y+3,43,43);this.text(NAME[color],x+61,y+18,12,'#283748','center',true);this.text(g.pieces[i].filter(n=>n===57).length+'/4',x+61,y+37,11,'#283748','center');});
+    this.backHeader('好友飞行棋',g.winner===null?'轮到'+NAME[g.colors[g.turn]]:NAME[g.colors[g.winner]]+'获胜！',()=>{this.flyingExit=true;});
+    this.button('暂停',187,27,77,44,()=>this.pause(),'#FFFCF3','#283748');
+    const {x:bx,y:by,width:size}=L.flying.board,scale=size/PATHS.width;
+    g.colors.forEach((color,i)=>{const x=24+i*83,y=145;this.rect(x,y,80,52,i===g.turn?COLOR[color]:'#FFFCF3');this.flyingArt('FG-AVATAR-'+color,x+3,y+3,43,43);this.text(NAME[color],x+61,y+18,12,'#283748','center',true);this.text(g.pieces[i].filter(n=>n===57).length+'/4',x+61,y+37,11,'#283748','center');});
     const boardArt=this.drawAsset('FG-BOARD-001',bx,by,size,size);
     const boardBounds=boardArt.bounds;
     if(boardArt.status!=='ready') {
@@ -71,25 +69,25 @@ function install(App) {
       if(!this.flyingArt('FG-TOKEN-'+color,x-9,y-9,18,18)){this.circle(x,y,8,COLOR[color]);this.text(piece+1,x,y,9,'#283748','center',true);}
       if(player===g.turn&&legal.includes(piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;this.ctx.beginPath();this.ctx.arc(x,y,11,0,Math.PI*2);this.ctx.stroke();}
     }));
-    const fx=123,fy=603;
+    const {x:fx,y:fy,width:dieSize}=L.flying.dice;
     if(this.flyingRolling>0) {
       const frame=Math.min(15,Math.floor((1.28-this.flyingRolling)/.08));
-      this.ctx.save();this.ctx.translate(fx+32,fy+32);this.ctx.rotate(frame*Math.PI/4);
-      const ready=this.flyingArt('FG-DICE-'+String(frame).padStart(2,'0'),-32,-32,64,64);this.ctx.restore();
-      if(!ready)this.drawFlyingDie(fx,fy,64,1+(frame%6));
-      this.text('骰子滚动中…',250,635,14,'#283748','center');
+      this.ctx.save();this.ctx.translate(fx+dieSize/2,fy+dieSize/2);this.ctx.rotate(frame*Math.PI/4);
+      const ready=this.flyingArt('FG-DICE-'+String(frame).padStart(2,'0'),-dieSize/2,-dieSize/2,dieSize,dieSize);this.ctx.restore();
+      if(!ready)this.drawFlyingDie(fx,fy,dieSize,1+(frame%6));
+      this.text('骰子滚动中…',245,604,14,'#283748','center');
     } else {
-      this.drawFlyingDie(fx,fy,64,g.die||1);
-      if(g.phase==='roll')this.button('掷骰子',201,611,147,48,()=>this.rollFlying());
-      else if(g.phase==='choose')this.text(legal.length?'选择一架飞机':'本轮无法移动',267,635,15,'#283748','center',true);
+      this.drawFlyingDie(fx,fy,dieSize,g.die||1);
+      if(g.phase==='roll')this.button('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,()=>this.rollFlying());
+      else if(g.phase==='choose')this.text(legal.length?'选择一架飞机':'本轮无法移动',245,604,15,'#283748','center',true);
     }
     if(!this.flyingRolling&&g.phase==='choose') {
-      if(!legal.length)this.button('下一回合',24,689,327,48,()=>g.pass());
-      else legal.forEach((piece,i)=>this.button('飞机 '+(piece+1),15+i*89,689,79,48,()=>g.move(piece),COLOR[g.colors[g.turn]],'#283748'));
+      if(!legal.length)this.button('下一回合',24,645,327,44,()=>g.pass());
+      else legal.forEach((piece,i)=>this.button('飞机 '+(piece+1),L.flying.choices[i].x,L.flying.choices[i].y,L.flying.choices[i].width,L.flying.choices[i].height,()=>g.move(piece),COLOR[g.colors[g.turn]],'#283748'));
     }
-    if(g.phase==='done')this.button('再开一局',24,689,327,48,()=>this.newFlying());
+    if(g.phase==='done')this.button('再开一局',24,645,327,44,()=>this.newFlying());
     this.text('2 / 4 / 6 起飞 · 同机轮流 · 6 点连掷',187,774,12,'#778079','center');
-    if(this.paused||this.flyingExit){this.buttons=[];this.rect(0,0,375,812,'rgba(25,35,45,.5)',0);this.rect(38,279,299,243,'#FAF5E9');this.text(this.flyingExit?'结束这局飞行棋？':'休息一下',187,324,23,'#283748','center',true);this.button('继续游戏',60,370,255,48,()=>{this.paused=false;this.flyingExit=false;});this.button('返回派对',60,444,255,48,()=>{this.paused=false;this.flyingExit=false;this.flying=null;this.mode='派对';this.go('home');},'#F3A18B','#283748');}
+    if(this.paused||this.flyingExit)this.sharedModal(this.flyingExit?'结束这局飞行棋？':'休息一下','',[{label:'继续游戏',fn:()=>{this.paused=false;this.flyingExit=false;}},{label:'返回派对',fill:'#F3A18B',fn:()=>{this.paused=false;this.flyingExit=false;this.flying=null;this.mode='派对';this.go('home');}}]);
   };
   // Final pips are drawn from game state, never inferred from generated animation.
   p.drawFlyingDie=function(x,y,size,value) {
