@@ -1,0 +1,12 @@
+{
+  "pages": [
+    "pages/index/index",
+    "pages/room/room"
+  ],
+  "window": {
+    "navigationBarTitleText": "好友飞行棋",
+    "navigationBarBackgroundColor": "#faf5e9",
+    "backgroundColor": "#faf5e9"
+  },
+  "style": "v2"
+}

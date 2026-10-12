@@ -1,0 +1,13 @@
+{
+  "description": "手绘飞行棋 · 四人联机小程序",
+  "compileType": "miniprogram",
+  "appid": "touristappid",
+  "projectname": "flying-chess-online",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
+  "setting": {
+    "es6": true,
+    "minified": true,
+    "urlCheck": true
+  }
+}
