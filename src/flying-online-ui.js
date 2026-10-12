@@ -55,7 +55,7 @@ function install(App){
    const canMove=myTurn&&!client.busy&&!client.pending&&!this.onlineRolling;
    const grouped={};g.colors.forEach((color,player)=>g.pieces[player].forEach((n,piece)=>{if(n===57)return;const pos=g.position(player,piece),key=pos.x+','+pos.y;(grouped[key]||(grouped[key]=[])).push({color,player,piece,pos});}));
    Object.values(grouped).forEach(group=>group.forEach((t,i)=>{const at=artLayout.project(t.pos,b),x=at.x+(group.length>1?(i%4-1.5)*8:0),y=at.y+(group.length>4?Math.floor(i/4)*8:0);if(!this.flyingArt('FG-TOKEN-'+t.color,x-9,y-9,18,18))this.circle(x,y,8,COLOR[t.color]);this.text(t.piece+1,x,y,9,'#283748','center',true);if(canMove&&t.player===g.turn&&legal.includes(t.piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=2;this.ctx.beginPath();this.ctx.arc(x,y,12,0,Math.PI*2);this.ctx.stroke();this.buttons.push({label:'移动飞机'+(t.piece+1),x:x-18,y:y-18,w:36,h:36,fn:()=>client.command('move',{piece:t.piece})});}}));
-   if(this.onlineRolling){const frame=Math.floor((1.28-this.onlineRolling)/.08);this.ctx.save();this.ctx.translate(71,593);this.ctx.rotate(frame*Math.PI/4);this.flyingArt('FG-DICE-00',-30,-30,60,60);this.ctx.restore();}else this.drawFlyingDie(L.flying.dice.x,L.flying.dice.y,L.flying.dice.width,g.die||1);
+   this.drawFlyingDiceState(g.die||1,this.onlineRolling||0);
    this.text(r.status==='playing'?'剩余 '+client.seconds()+' 秒':'对局结束',245,550,13,'#778079','center');
    if(r.status==='done'){if(r.isHost)this.onlineButton('再开一局',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'rematch');}
    else if(myTurn&&g.phase==='roll')this.onlineButton('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,'roll');

@@ -10,13 +10,6 @@ function install(App) {
   p.newFlying=function() {
     this.flying=new Flying(this.flyingCount||4); this.flyingRolling=0; this.flyingExit=false;
     this.assetImages=this.assetImages||{};
-    // Preload the whole short animation so the first roll can use actual frames.
-    for(let i=0;i<16;i++) {
-      const path=this.assetFiles&&this.assetFiles['FG-DICE-'+String(i).padStart(2,'0')];
-      if(!path||this.assetImages[path]||!this.platform.createImage)continue;
-      const image=this.platform.createImage(),entry={image,state:'loading'};
-      this.assetImages[path]=entry;image.onload=()=>{entry.state='ready';};image.onerror=()=>{entry.state='error';};image.src=path;
-    }
     this.go('flyingBoard');
   };
   p.rollFlying=function() {
@@ -69,18 +62,10 @@ function install(App) {
       if(!this.flyingArt('FG-TOKEN-'+color,x-9,y-9,18,18)){this.circle(x,y,8,COLOR[color]);this.text(piece+1,x,y,9,'#283748','center',true);}
       if(player===g.turn&&legal.includes(piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;this.ctx.beginPath();this.ctx.arc(x,y,11,0,Math.PI*2);this.ctx.stroke();}
     }));
-    const {x:fx,y:fy,width:dieSize}=L.flying.dice;
-    if(this.flyingRolling>0) {
-      const frame=Math.min(15,Math.floor((1.28-this.flyingRolling)/.08));
-      this.ctx.save();this.ctx.translate(fx+dieSize/2,fy+dieSize/2);this.ctx.rotate(frame*Math.PI/4);
-      const ready=this.flyingArt('FG-DICE-'+String(frame).padStart(2,'0'),-dieSize/2,-dieSize/2,dieSize,dieSize);this.ctx.restore();
-      if(!ready)this.drawFlyingDie(fx,fy,dieSize,1+(frame%6));
-      this.text('骰子滚动中…',245,604,14,'#283748','center');
-    } else {
-      this.drawFlyingDie(fx,fy,dieSize,g.die||1);
-      if(g.phase==='roll')this.button('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,()=>this.rollFlying());
-      else if(g.phase==='choose')this.text(legal.length?'选择一架飞机':'本轮无法移动',245,604,15,'#283748','center',true);
-    }
+    this.drawFlyingDiceState(g.die||1,this.flyingRolling);
+    if(this.flyingRolling>0)this.text('骰子滚动中…',245,604,14,'#283748','center');
+    else if(g.phase==='roll')this.button('掷骰子',L.flying.primary.x,L.flying.primary.y,L.flying.primary.width,L.flying.primary.height,()=>this.rollFlying());
+    else if(g.phase==='choose')this.text(legal.length?'选择一架飞机':'本轮无法移动',245,604,15,'#283748','center',true);
     if(!this.flyingRolling&&g.phase==='choose') {
       if(!legal.length)this.button('下一回合',24,645,327,44,()=>g.pass());
       else legal.forEach((piece,i)=>this.button('飞机 '+(piece+1),L.flying.choices[i].x,L.flying.choices[i].y,L.flying.choices[i].width,L.flying.choices[i].height,()=>g.move(piece),COLOR[g.colors[g.turn]],'#283748'));
@@ -88,6 +73,12 @@ function install(App) {
     if(g.phase==='done')this.button('再开一局',24,645,327,44,()=>this.newFlying());
     this.text('2 / 4 / 6 起飞 · 同机轮流 · 6 点连掷',187,774,12,'#778079','center');
     if(this.paused||this.flyingExit)this.sharedModal(this.flyingExit?'结束这局飞行棋？':'休息一下','',[{label:'继续游戏',fn:()=>{this.paused=false;this.flyingExit=false;}},{label:'返回派对',fill:'#F3A18B',fn:()=>{this.paused=false;this.flyingExit=false;this.flying=null;this.mode='派对';this.go('home');}}]);
+  };
+  // One fixed body for both rolling and settled dice; only pips change.
+  p.drawFlyingDiceState=function(value,remaining=0){
+    const b=L.flying.dice;
+    const displayed=remaining>0?1+(Math.max(0,Math.floor((1.28-remaining)/.08))%6):value;
+    this.drawFlyingDie(b.x,b.y,b.width,displayed);
   };
   // Final pips are drawn from game state, never inferred from generated animation.
   p.drawFlyingDie=function(x,y,size,value) {
