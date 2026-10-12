@@ -62,4 +62,6 @@ class App{
 require('./interface').install(App,GAMES,M,C);
 require('./flying-ui').install(App);
 require('./layout').install(App);
+// Installed last so its scene-aware share() replaces the earlier generic one.
+require('./share-cards').install(App);
 module.exports={App,GAMES};

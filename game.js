@@ -15,8 +15,11 @@ wx.onTouchEnd(e => e.changedTouches.forEach(t => app.pointer('up', t.clientX, t.
 wx.onTouchCancel(() => app.cancel());
 wx.onHide(() => app.pause());
 wx.onShow(() => app.resetClock());
-wx.showShareMenu({ menus: ['shareAppMessage'] });
-wx.onShareAppMessage(() => ({ title: '玩一会儿：单人解压，双人对决！' }));
+// shareTimeline 一并开启：微信要求二者同开，否则 onShareTimeline 不生效。
+wx.showShareMenu({ menus: ['shareAppMessage', 'shareTimeline'] });
+// 右上角菜单转发与游戏内「分享」按钮共用同一份场景化内容（设计指南 3.6 一致性）。
+wx.onShareAppMessage(() => app.buildShareContent());
+wx.onShareTimeline(() => ({ title: app.buildShareContent().title }));
 let last = 0;
 function frame(t) {
   app.update(last ? Math.min((t - last) / 1000, 0.04) : 0);
