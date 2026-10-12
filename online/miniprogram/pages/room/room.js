@@ -58,7 +58,21 @@ Page({
   }finally{if(!this.destroyed)this.setData({busy:false});}
  },
  reconnect(){if(this.data.room.id)this.poll();else this.join();},retry(){this.sendPending();},ready(){this.command('ready');},start(){this.command('start');},roll(){this.command('roll');},move(e){this.command('move',{piece:Number(e.currentTarget.dataset.piece)});},timeout(){this.command('timeout');},rematch(){this.command('rematch');},
- onShareAppMessage(){return {title:'来玩手绘飞行棋！四人房间还差你',path:'/pages/room/room?roomId='+this.roomId};},
+ onShareAppMessage(){
+  // Card copy must match the real room state (design guide 3.6): never claim a
+  // seat is free once four players are in, and never claim it is full before.
+  const full=this.data.count>=4;
+  const playing=this.data.room&&(this.data.room.status==='playing'||this.data.room.status==='done');
+  const card={path:'/pages/room/room?roomId='+this.roomId};
+  card.title=(full||playing)
+   ?'这局手绘飞行棋四人都到齐了，点进来围观'
+   :'来玩手绘飞行棋！四人房间还差 '+(4-this.data.count)+' 人';
+  // art() returns '' when no asset host is configured; omit imageUrl then so
+  // WeChat falls back to its own screenshot instead of receiving an empty URL.
+  const img=art(full||playing?'FG-BOARD-001':'FG-BG-001');
+  if(img)card.imageUrl=img;
+  return card;
+ },
  rules(){wx.showModal({title:'飞行规则',content:'四人全部准备后由房主开始。2、4、6点起飞；6点连掷；点数需刚好到终点。点击高亮飞机移动，每次操作限时60秒。',showCancel:false});},
  copyRoom(){wx.setClipboardData({data:this.roomId});},
  async leave(){
