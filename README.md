@@ -13,7 +13,7 @@
 
    ```js
    module.exports = {
-     baseUrl: 'https://你的域名/game-assets/v1',
+     baseUrl: 'https://gskj-d7gp86qo88751cc06-1345665452.tcloudbaseapp.com/gamecenter/game-assets/v1',
      useLocalAssets: false
    };
    ```
@@ -25,7 +25,9 @@
 - https://github.com/wechat-miniprogram/minigame-demo
 - https://developers.weixin.qq.com/minigame/dev/guide/base-ability/network.html
 
-当前没有提供真实素材托管域名，所以 `baseUrl` 留空。留空时显示配置提示，使用内置绘制组件，游戏规则仍可运行；这不代表远程素材已经接通。
+当前 `baseUrl` 已配置为 CloudBase 静态托管地址：`https://gskj-d7gp86qo88751cc06-1345665452.tcloudbaseapp.com/gamecenter/game-assets/v1`。上传目录包含 `/gamecenter/game-assets/v1`，不要遗漏 `/gamecenter`，也不要再追加一层 `assets`。联机小程序 `online/miniprogram/config.js` 使用相同素材地址，联机云环境 `envId` 保持原配置。
+
+2026-10-12 上传包包含原素材库和 Canva 最新三页的拆分素材，拆分目录为 `assets/CANVA_SPLIT_20261012/`。它不包含代码引用的 `assets/FLYING/FG-*` 文件；这些文件仍需从飞行棋独立包补充上传。Canva 拆分图层没有自动替换 `FG-*` 映射。
 
 本地临时验证：把素材包中的 `assets/` 解压到项目根目录，将 `useLocalAssets` 设为 `true`。图片目录已在 `.gitignore` 中排除，正式配置改回远程地址。开发工具上传本地模式时会包含图片，请自行检查包大小。
 
