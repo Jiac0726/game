@@ -5,9 +5,13 @@ Page({
   busy:false,error:'',lastRoom:'',rules:{...DEFAULT_RULES},
   launchLabels:['仅6点','5或6点','偶数点'],launchIndex:0,
   threeSixLabels:['第三次6正常走完、不再连投','第三次6走完后该棋回机库'],threeSixIndex:0,
-  stackLabels:['敌方叠机阻挡','落点叠机双方回机库'],stackIndex:0
+  stackLabels:['敌方叠机阻挡','落点叠机双方回机库'],stackIndex:0,
+  botCountLabels:['无机器人（4真人）','1台机器人','2台机器人','3台机器人'],botCountIndex:0,
+  botDifficultyLabels:['简单','普通','困难'],botDifficultyIndex:1
  },
  onShow(){this.setData({lastRoom:wx.getStorageSync('flyingRoomId')||''});},
+ botCountChange(e){this.setData({botCountIndex:Number(e.detail.value)});},
+ botDifficultyChange(e){this.setData({botDifficultyIndex:Number(e.detail.value)});},
  nameInput(e){this.name=e.detail.value;},
  roomInput(e){this.roomId=e.detail.value.trim();},
  launchChange(e){
@@ -30,7 +34,7 @@ Page({
  async create(){
   if(this.data.busy)return;
   this.setData({busy:true,error:''});
-  try{const r=await call('create',{name:this.name||'',rules:this.data.rules});this.open(r.room.id);}
+  try{const r=await call('create',{name:this.name||'',rules:this.data.rules,bots:{count:this.data.botCountIndex,difficulty:['easy','normal','hard'][this.data.botDifficultyIndex]}});this.open(r.room.id);}
   catch(e){this.setData({error:e.message});}
   finally{this.setData({busy:false});}
  },
