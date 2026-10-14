@@ -4,6 +4,10 @@
  <view class="card">
   <view>派对 · 好友飞行棋</view>
   <input maxlength="12" placeholder="你的游戏昵称（选填）" bindinput="nameInput"/>
+  <view class="title-small">对手设置</view>
+  <picker mode="selector" range="{{botCountLabels}}" value="{{botCountIndex}}" bindchange="botCountChange"><view class="rule-row">电脑数量：{{botCountLabels[botCountIndex]}} ▾</view></picker>
+  <picker wx:if="{{botCountIndex > 0}}" mode="selector" range="{{botDifficultyLabels}}" value="{{botDifficultyIndex}}" bindchange="botDifficultyChange"><view class="rule-row">电脑难度：{{botDifficultyLabels[botDifficultyIndex]}} ▾</view></picker>
+  <view class="muted">空位仍可邀请真人；机器人占用的座位可在等待室调整。</view>
   <view class="title-small">创建房间规则（开局后不可更改）</view>
   <picker mode="selector" range="{{launchLabels}}" value="{{launchIndex}}" bindchange="launchChange"><view class="rule-row">起飞方式：{{launchLabels[launchIndex]}} ▾</view></picker>
   <picker mode="selector" range="{{threeSixLabels}}" value="{{threeSixIndex}}" bindchange="threeSixChange"><view class="rule-row">连续三次6：{{threeSixLabels[threeSixIndex]}} ▾</view></picker>
