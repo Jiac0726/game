@@ -5,8 +5,10 @@ const DEFAULT_RULES = Object.freeze({
   launch: 'six', threeSix: 'noBonus', jump: true, flight: true,
   capture: true, stack: 'block', bounce: true
 });
-const CROSSINGS = {R:'Y', Y:'B', B:'G', G:'R'};
-const FLIGHT_START = 16; // Board-specific progress marker; change with the artwork calibration.
+const CROSSINGS = PATHS.rules.flightCrossings;
+const FLIGHT_START = PATHS.rules.flightStartProgress;
+const FLIGHT_DISTANCE = PATHS.rules.flightDistance;
+const FLIGHT_CORRIDOR = PATHS.rules.flightCorridorProgress;
 function normalizeRules(input) {
   const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   const allowed = (field, choices) => choices.includes(value[field]) ? value[field] : DEFAULT_RULES[field];
@@ -55,6 +57,10 @@ class Flying {
           found.push({player:p,piece:i});
       return found;
     };
+    const stackedAt=target=>{
+      const counts={};opponentsAt(target).forEach(o=>{counts[o.player]=(counts[o.player]||0)+1;});
+      return Object.values(counts).some(n=>n>=2);
+    };
     const collide=(target,kind)=>{
       const opponents=opponentsAt(target), totals={};
       opponents.forEach(o=>{totals[o.player]=(totals[o.player]||0)+1;});
@@ -82,9 +88,7 @@ class Flying {
           direction=-1;next=56;
         }
         if(next>=0 && next<52) {
-          const found=opponentsAt(next), totals={};
-          found.forEach(o=>{totals[o.player]=(totals[o.player]||0)+1;});
-          if(Object.values(totals).some(c=>c>=2)) {
+          if(stackedAt(next)) {
             if(n!==this.die-1 || this.rules.stack==='block') return null;
           }
         }
@@ -93,14 +97,19 @@ class Flying {
       if(!collide(currentStep,'move')) return null;
     }
     const sameColor = progress => progress>0 && progress<52 && progress%4===0 && progress+4<52;
-    const bonus=(target,kind) => !lost && collide(target,kind);
+    const bonus=(target,kind) => {
+      if(lost)return false;
+      // A stack cannot be jumped or flown over, even if the bonus landing is clear.
+      for(let step=current+1;step<target;step++)if(stackedAt(step))return false;
+      return collide(target,kind);
+    };
     const flight=()=>{
       if(!this.rules.flight || lost || current!==FLIGHT_START) return false;
-      if(!bonus(current+12,'flight')) return false;
+      if(!bonus(current+FLIGHT_DISTANCE,'flight')) return false;
       if(lost)return true;
       // A flight crosses the opposing safe corridor at the designated intersection.
       const other=this.colors.indexOf(CROSSINGS[this.colors[player]]);
-      if(other>=0 && this.rules.capture) for(let i=0;i<4;i++) if(board[other][i]===54){
+      if(other>=0 && this.rules.capture) for(let i=0;i<4;i++) if(board[other][i]===FLIGHT_CORRIDOR){
         board[other][i]=-1;captures.push({player:other,piece:i});
         events.push({type:'crossCapture',player:other,piece:i});
       }
