@@ -1,1 +1,20 @@
-<view class="page"><view class="title">一起飞行吧！</view><view class="muted">四位好友 · 四部手机 · 同一张手绘棋盘</view><view class="card"><view>派对 · 好友飞行棋</view><input maxlength="12" placeholder="你的游戏昵称（选填）" bindinput="nameInput"/><button bindtap="create" loading="{{busy}}" disabled="{{busy}}">创建四人房间</button><view class="muted">建房后点击邀请好友，好友打开分享卡片即可加入。</view></view><view class="card"><input maxlength="32" placeholder="粘贴房间码" bindinput="roomInput"/><button bindtap="join" disabled="{{busy}}">加入好友房间</button><button wx:if="{{lastRoom}}" bindtap="resume">返回上一局</button></view><view class="error">{{error}}</view></view>
+<view class="page">
+ <view class="title">一起飞行吧！</view>
+ <view class="muted">四位好友 · 四部手机 · 同一张手绘棋盘</view>
+ <view class="card">
+  <view>派对 · 好友飞行棋</view>
+  <input maxlength="12" placeholder="你的游戏昵称（选填）" bindinput="nameInput"/>
+  <view class="title-small">创建房间规则（开局后不可更改）</view>
+  <picker mode="selector" range="{{launchLabels}}" value="{{launchIndex}}" bindchange="launchChange"><view class="rule-row">起飞方式：{{launchLabels[launchIndex]}} ▾</view></picker>
+  <picker mode="selector" range="{{threeSixLabels}}" value="{{threeSixIndex}}" bindchange="threeSixChange"><view class="rule-row">连续三次6：{{threeSixLabels[threeSixIndex]}} ▾</view></picker>
+  <picker mode="selector" range="{{stackLabels}}" value="{{stackIndex}}" bindchange="stackChange"><view class="rule-row">叠机处理：{{stackLabels[stackIndex]}} ▾</view></picker>
+  <view class="rule-row">同色跳4格<switch checked="{{rules.jump}}" color="#497F76" data-rule="jump" bindchange="ruleToggle"/></view>
+  <view class="rule-row">虚线飞越12格<switch checked="{{rules.flight}}" color="#497F76" data-rule="flight" bindchange="ruleToggle"/></view>
+  <view class="rule-row">撞子<switch checked="{{rules.capture}}" color="#497F76" data-rule="capture" bindchange="ruleToggle"/></view>
+  <view class="rule-row">终点超点反弹<switch checked="{{rules.bounce}}" color="#497F76" data-rule="bounce" bindchange="ruleToggle"/></view>
+  <button bindtap="create" loading="{{busy}}" disabled="{{busy}}">创建四人房间</button>
+  <view class="muted">建房后点击邀请好友，好友打开分享卡片即可加入。</view>
+ </view>
+ <view class="card"><input maxlength="32" placeholder="粘贴房间码" bindinput="roomInput"/><button bindtap="join" disabled="{{busy}}">加入好友房间</button><button wx:if="{{lastRoom}}" bindtap="resume">返回上一局</button></view>
+ <view class="error">{{error}}</view>
+</view>
