@@ -1,12 +1,12 @@
-const {Flying}=require('./lib/flying-model');
+const {Flying,normalizeRules}=require('./lib/flying-model');
 const COLORS=['R','Y','B','G'];
 const TTL=24*60*60*1000, TURN_MS=60000;
 function fail(code,message){const e=new Error(message);e.code=code;throw e;}
 function cleanName(name){return typeof name==='string'?name.trim().slice(0,12):'';}
 function member(uid,name,seat){return {uid,name:cleanName(name)||('玩家'+(seat+1)),ready:false,color:COLORS[seat]};}
-function createRoom(id,uid,name,now){return {id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',game:null,revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null};}
-function hydrate(state,random){return Object.assign(new Flying(4,random),state);}
-function state(g){return {colors:g.colors,pieces:g.pieces,turn:g.turn,phase:g.phase,die:g.die,winner:g.winner};}
+function createRoom(id,uid,name,now,rules){return {id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',game:null,rules:normalizeRules(rules),revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null,lastMove:null};}
+function hydrate(state,random){return Object.assign(new Flying(4,random,state.rules),state);}
+function state(g){return {colors:g.colors,pieces:g.pieces,turn:g.turn,phase:g.phase,die:g.die,winner:g.winner,sixStreak:g.sixStreak,rules:g.rules};}
 function apply(original,uid,e,now,random){
  const room=JSON.parse(JSON.stringify(original));
  if(now>=room.expiresAt)fail('EXPIRED','房间已过期，请重新建房');
@@ -34,13 +34,13 @@ function apply(original,uid,e,now,random){
    if(room.host!==uid)fail('HOST','只有房主可以开始');
    if(e.action==='start'&&room.status!=='waiting'||e.action==='rematch'&&room.status!=='done')fail('PHASE','当前不能开局');
    if(!room.seats.every(p=>p&&(e.action==='rematch'||p.ready)))fail('NOT_READY','需要四人到齐并准备');
-   room.game=state(new Flying(4));room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;
+   room.game=state(new Flying(4,Math.random,room.rules));room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;room.lastMove=null;
   }else{
    if(room.status!=='playing')fail('PHASE','对局尚未开始或已经结束');
    const g=hydrate(room.game,random);
    if(e.action==='timeout'){
     if(now<room.deadline)fail('TOO_EARLY','当前回合尚未超时');
-    g.turn=(g.turn+1)%4;g.phase='roll';g.die=0;
+    g.turn=(g.turn+1)%4;g.phase='roll';g.die=0;g.sixStreak=0;
    }else{
     if(seat!==g.turn)fail('TURN','还没轮到你');
     if(now>=room.deadline)fail('TIMEOUT','回合已超时，请跳过超时回合');
@@ -49,7 +49,10 @@ function apply(original,uid,e,now,random){
      room.lastRoll={id:e.requestId,die:g.die,player:seat};
      if(!g.legal().length)g.pass();
     }else if(e.action==='move'){
-     if(!Number.isInteger(e.piece)||!g.move(e.piece))fail('MOVE','这架飞机当前不能移动');
+     if(!Number.isInteger(e.piece))fail('MOVE','这架飞机当前不能移动');
+     const movement=g.move(e.piece);
+     if(!movement)fail('MOVE','这架飞机当前不能移动');
+     room.lastMove={id:e.requestId,...movement};
     }else fail('ACTION','未知操作');
    }
    room.game=state(g);room.status=g.phase==='done'?'done':'playing';room.deadline=now+TURN_MS;
@@ -58,5 +61,5 @@ function apply(original,uid,e,now,random){
  }
  room.revision++;return room;
 }
-function view(room,uid){const seat=room.seats.findIndex(p=>p&&p.uid===uid);return {id:room.id,seats:room.seats.map(p=>p?{name:p.name,ready:p.ready,color:p.color}:null),seat,isHost:room.host===uid,status:room.status,game:room.game,revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,lastRoll:room.lastRoll};}
+function view(room,uid){const seat=room.seats.findIndex(p=>p&&p.uid===uid);return {id:room.id,seats:room.seats.map(p=>p?{name:p.name,ready:p.ready,color:p.color}:null),seat,isHost:room.host===uid,status:room.status,game:room.game,rules:room.rules,revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,lastRoll:room.lastRoll,lastMove:room.lastMove};}
 module.exports={createRoom,apply,view};
