@@ -6,7 +6,8 @@ const config=require('../../config');
 const HEX={R:'#ed9887',Y:'#f0d16c',B:'#7ebfdc',G:'#94cda7'};
 const NAME={R:'红方',Y:'黄方',B:'蓝方',G:'绿方'};
 Page({
- data:{room:{status:'loading'},seats:[],busy:false,connected:false,error:'',legal:[],seconds:60,pending:false,rolling:false},
+ data:{room:{status:'loading'},seats:[],busy:false,connected:false,error:'',legal:[],seconds:60,pending:false,rolling:false,
+  botCountIndex:0,botDifficultyIndex:1,botCountLabels:['0台','1台','2台','3台'],botDifficultyLabels:['简单','普通','困难']},
  onLoad(options){
   this.roomId=options.roomId;this.images={};this.offset=0;
   const pending=wx.getStorageSync('flyingPending');
@@ -29,13 +30,19 @@ Page({
   this.offset=result.serverNow-Date.now();
   const oldRoll=this.data.room.lastRoll;
   const animate=room.lastRoll&&this.data.room.id&&(!oldRoll||room.lastRoll.id!==oldRoll.id);
-  const seats=room.seats.map((p,i)=>p?{index:i,name:p.name,colorHex:HEX[p.color],label:room.status==='waiting'?(p.ready?'已准备':'尚未准备'):(room.game&&room.game.turn===i?'当前回合':'已入座')}:{index:i,name:'等待好友',colorHex:'#c8c5b9',label:'空座位'});
+  const seats=room.seats.map((p,i)=>p?{index:i,name:p.name,colorHex:HEX[p.color],
+   label:p.bot?('AI · '+({easy:'简单',normal:'普通',hard:'困难'}[p.difficulty]||'普通')):
+    room.status==='waiting'?(p.ready?'已准备':'尚未准备'):(room.game&&room.game.turn===i?'当前回合':'已入座')}
+   :{index:i,name:'等待好友',colorHex:'#c8c5b9',label:'空座位'});
   const myTurn=room.game&&room.game.turn===room.seat&&room.status==='playing';
   const g=room.game&&Object.assign(new Flying(4),room.game);
   const rule=room.rules||(room.game&&room.game.rules)||{};
   const launch={six:'6点',fiveSix:'5或6点',even:'偶数点'}[rule.launch]||'6点';
   const rulesSummary=launch+'起飞 · '+(rule.jump===false?'无跳子':'同色跳4格')+' · '+(rule.flight===false?'无飞越':'虚线飞12格')+' · '+(rule.bounce===false?'必须精准到达':'超点反弹');
-  this.setData({room,seats,myTurn,rulesSummary,legal:myTurn?g.legal():[],count:room.seats.filter(Boolean).length,allReady:room.seats.every(p=>p&&p.ready),myReady:!!(room.seats[room.seat]&&room.seats[room.seat].ready),connected:true,statusText:room.status==='closed'?'房间已关闭':room.status==='done'?NAME[room.game.colors[room.game.winner]]+'获胜！':room.game?'轮到'+room.seats[room.game.turn].name:'等待好友'});
+  const config=room.botConfig||{count:0,difficulty:'normal'};
+  const botSettings=(!this.data.room.id||this.data.room.revision!==room.revision)?
+   {botCountIndex:config.count,botDifficultyIndex:Math.max(0,['easy','normal','hard'].indexOf(config.difficulty))}:{};
+  this.setData({...botSettings,room,seats,myTurn,rulesSummary,legal:myTurn?g.legal():[],count:room.seats.filter(Boolean).length,allReady:room.seats.every(p=>p&&p.ready),myReady:!!(room.seats[room.seat]&&room.seats[room.seat].ready),connected:true,statusText:room.status==='closed'?'房间已关闭':room.status==='done'?NAME[room.game.colors[room.game.winner]]+'获胜！':room.game?'轮到'+room.seats[room.game.turn].name:'等待好友'});
   this.clock();this.draw();if(animate&&!this.hidden)this.animateDie();
  },
  clock(){this.setData({seconds:Math.max(0,Math.ceil((this.data.room.deadline-Date.now()-this.offset)/1000))});},
@@ -59,6 +66,9 @@ Page({
    try{this.accept(await call('get',{roomId:this.roomId}));}catch(_){}
   }finally{if(!this.destroyed)this.setData({busy:false});}
  },
+ botCountChange(e){this.setData({botCountIndex:Number(e.detail.value)});},
+ botDifficultyChange(e){this.setData({botDifficultyIndex:Number(e.detail.value)});},
+ saveBots(){this.command('setBots',{count:this.data.botCountIndex,difficulty:['easy','normal','hard'][this.data.botDifficultyIndex]});},
  reconnect(){if(this.data.room.id)this.poll();else this.join();},retry(){this.sendPending();},ready(){this.command('ready');},start(){this.command('start');},roll(){this.command('roll');},move(e){this.command('move',{piece:Number(e.currentTarget.dataset.piece)});},timeout(){this.command('timeout');},rematch(){this.command('rematch');},
  onShareAppMessage(){return {title:'来玩手绘飞行棋！四人房间还差你',path:'/pages/room/room?roomId='+this.roomId};},
  copyRoom(){wx.setClipboardData({data:this.roomId});},
