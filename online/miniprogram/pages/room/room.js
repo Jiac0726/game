@@ -32,7 +32,10 @@ Page({
   const seats=room.seats.map((p,i)=>p?{index:i,name:p.name,colorHex:HEX[p.color],label:room.status==='waiting'?(p.ready?'已准备':'尚未准备'):(room.game&&room.game.turn===i?'当前回合':'已入座')}:{index:i,name:'等待好友',colorHex:'#c8c5b9',label:'空座位'});
   const myTurn=room.game&&room.game.turn===room.seat&&room.status==='playing';
   const g=room.game&&Object.assign(new Flying(4),room.game);
-  this.setData({room,seats,myTurn,legal:myTurn?g.legal():[],count:room.seats.filter(Boolean).length,allReady:room.seats.every(p=>p&&p.ready),myReady:!!(room.seats[room.seat]&&room.seats[room.seat].ready),connected:true,statusText:room.status==='closed'?'房间已关闭':room.status==='done'?NAME[room.game.colors[room.game.winner]]+'获胜！':room.game?'轮到'+room.seats[room.game.turn].name:'等待好友'});
+  const rule=room.rules||(room.game&&room.game.rules)||{};
+  const launch={six:'6点',fiveSix:'5或6点',even:'偶数点'}[rule.launch]||'6点';
+  const rulesSummary=launch+'起飞 · '+(rule.jump===false?'无跳子':'同色跳4格')+' · '+(rule.flight===false?'无飞越':'虚线飞12格')+' · '+(rule.bounce===false?'必须精准到达':'超点反弹');
+  this.setData({room,seats,myTurn,rulesSummary,legal:myTurn?g.legal():[],count:room.seats.filter(Boolean).length,allReady:room.seats.every(p=>p&&p.ready),myReady:!!(room.seats[room.seat]&&room.seats[room.seat].ready),connected:true,statusText:room.status==='closed'?'房间已关闭':room.status==='done'?NAME[room.game.colors[room.game.winner]]+'获胜！':room.game?'轮到'+room.seats[room.game.turn].name:'等待好友'});
   this.clock();this.draw();if(animate&&!this.hidden)this.animateDie();
  },
  clock(){this.setData({seconds:Math.max(0,Math.ceil((this.data.room.deadline-Date.now()-this.offset)/1000))});},
@@ -90,7 +93,7 @@ Page({
    c.fillStyle='#283748';c.font='10px sans-serif';c.textAlign='center';c.fillText(String(t.piece+1),x,y+3);
    if(this.data.myTurn&&this.data.legal.includes(t.piece)&&t.player===g.turn){c.lineWidth=2;c.beginPath();c.arc(x,y,12,0,Math.PI*2);c.stroke();this.hit.push({x,y,piece:t.piece});}
   }));
-  if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image)c.drawImage(image,s/2-32,s/2-32,64,64);}
+  if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image)c.drawImage(image,s/2-20,s/2-20,40,40);}
  },
  boardTap(e){if(this.data.busy||this.data.rolling||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<20)this.command('move',{piece:sorted[0].piece});},
  animateDie(){clearTimeout(this.animation);this.setData({rolling:true});this.diceFrame=0;const frame=()=>{if(this.hidden||this.destroyed)return;this.draw();this.diceFrame++;if(this.diceFrame<16)this.animation=setTimeout(frame,80);else{this.setData({rolling:false});this.draw();}};frame();}
