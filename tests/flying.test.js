@@ -14,8 +14,8 @@ test('launch, move choice, pass and extra turn honor dice state',()=>{
   g.random=()=>.99;assert.equal(g.roll(),6);assert.deepEqual(g.legal(),[0,1,2,3]);g.move(0);assert.equal(g.turn,1);assert.equal(g.pieces[1][0],0);assert.equal(g.move(1),false);
   g.random=()=>.3;g.roll();g.move(0);assert.equal(g.pieces[1][0],2);assert.equal(g.turn,2);
 });
-test('exact finish, winning four planes and outer ring capture',()=>{
-  const g=new Flying(2,()=>.3);g.pieces[0]=[57,57,57,56];g.roll();assert.deepEqual(g.legal(),[]);g.pass();g.turn=0;g.random=()=>0;g.roll();g.move(3);assert.equal(g.winner,0);assert.equal(g.phase,'done');assert.equal(g.roll(),false);
+test('finish by exact roll, winning four planes and outer ring capture',()=>{
+  const g=new Flying(2,()=>0);g.pieces[0]=[57,57,57,56];g.roll();assert.deepEqual(g.legal(),[3]);g.move(3);assert.equal(g.winner,0);assert.equal(g.phase,'done');assert.equal(g.roll(),false);
   const h=new Flying(2,()=>0);h.pieces[0][0]=2;
   const target=h.ringIndex(0,3);h.pieces[1][0]=(target-paths.colors.B.startIndex+52)%52;
   h.roll();h.move(0);assert.equal(h.pieces[1][0],-1);

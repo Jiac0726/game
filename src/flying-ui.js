@@ -6,7 +6,7 @@ const NAME = {Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
 function install(App) {
   const p=App.prototype, render=p.render, update=p.update, pause=p.pause;
   p.newFlying=function() {
-    this.flying=new Flying(this.flyingCount||4); this.flyingRolling=0; this.flyingExit=false;
+    this.flying=new Flying(this.flyingCount||4,Math.random,this.flyingRules); this.flyingRolling=0; this.flyingExit=false;
     this.assetImages=this.assetImages||{};
     // Preload the whole short animation so the first roll can use actual frames.
     for(let i=0;i<16;i++) {
@@ -41,9 +41,9 @@ function install(App) {
     this.backHeader('好友飞行棋','彩铅棋盘 · 把手机放在桌上',()=>{this.mode='派对';this.go('home');});
     this.selectGroup('几个人一起玩？',[2,3,4],this.flyingCount||4,174,n=>this.flyingCount=n);
     if(!this.flyingArt('FG-BOARD-001',82,268,211,211)) { this.rect(82,268,211,211,'#BDDDC5'); this.text('四色飞行棋',187,367,24,'#283748','center',true); }
-    this.text('2 / 4 / 6 起飞，掷到 6 再来一次',187,511,14,'#283748','center');
-    this.text('绕环线一圈进入终点通道，点数需刚好',187,540,12,'#778079','center');
-    this.text('同机轮流 · 基础规则（不含跳格、飞越）',187,569,12,'#778079','center');
+    this.text('6 点起飞，掷到 6 再来一次',187,511,14,'#283748','center');
+    this.text('绕环线进入终点通道，超出会反弹',187,540,12,'#778079','center');
+    this.text('同机轮流 · 同色跳4格 · 虚线飞越12格',187,569,12,'#778079','center');
     this.button('开始飞行棋',24,620,327,52,()=>this.newFlying());
   };
   p.flyingBoard=function() {
@@ -82,7 +82,7 @@ function install(App) {
       else legal.forEach((piece,i)=>this.button('飞机 '+(piece+1),15+i*89,689,79,48,()=>g.move(piece),COLOR[g.colors[g.turn]],'#283748'));
     }
     if(g.phase==='done')this.button('再开一局',24,689,327,48,()=>this.newFlying());
-    this.text('2 / 4 / 6 起飞 · 同机轮流 · 6 点连掷',187,774,12,'#778079','center');
+    this.text('6 点起飞 · 同机轮流 · 6 点连掷',187,774,12,'#778079','center');
     if(this.paused||this.flyingExit){this.buttons=[];this.rect(0,0,375,812,'rgba(25,35,45,.5)',0);this.rect(38,279,299,243,'#FAF5E9');this.text(this.flyingExit?'结束这局飞行棋？':'休息一下',187,324,23,'#283748','center',true);this.button('继续游戏',60,370,255,48,()=>{this.paused=false;this.flyingExit=false;});this.button('返回派对',60,444,255,48,()=>{this.paused=false;this.flyingExit=false;this.flying=null;this.mode='派对';this.go('home');},'#F3A18B','#283748');}
   };
   // Final pips are drawn from game state, never inferred from generated animation.
