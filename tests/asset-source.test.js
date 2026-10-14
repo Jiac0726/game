@@ -53,3 +53,15 @@ test('drawing uses the remote URL, reuses the image, and preserves aspect ratio'
   assert.equal(draws.length, 2);
   assert.ok(Math.abs(result.bounds.width / result.bounds.height - catalog[id].pixel_size.width / catalog[id].pixel_size.height) < 1e-12);
 });
+
+test('configured CloudBase HTTPS asset root is shared by game and online flight chess', () => {
+  const miniGameConfig = require('../src/asset-config');
+  const onlineConfig = require('../online/miniprogram/config');
+  const expectedBase = 'https://www.gskj.cloud/game-assets/v1';
+  assert.equal(miniGameConfig.baseUrl, expectedBase);
+  assert.equal(miniGameConfig.useLocalAssets, false);
+  assert.equal(onlineConfig.assetBaseUrl, expectedBase);
+  const files = createAssetFiles(miniGameConfig);
+  assert.equal(files['P01-CONTENT-008'], expectedBase + '/' + paths['P01-CONTENT-008']);
+  assert.match(files['P01-CONTENT-008'], /^https:\/\/www\.gskj\.cloud\/game-assets\/v1\/assets\//);
+});
