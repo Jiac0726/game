@@ -124,7 +124,9 @@ function install(App) {
     const bx=9,by=183,size=357,scale=size/PATHS.width;
     const players={Y:[15,120],B:[280,120],R:[15,547],G:[280,547]};
     g.colors.forEach((color,i)=>{const [x,y]=players[color];this.rect(x,y,80,52,i===g.turn?COLOR[color]:'#FFFCF3');this.flyingArt('FG-AVATAR-'+color,x+3,y+3,43,43);this.text(this.isFlyingBot(i)?'AI'+NAME[color]:NAME[color],x+61,y+18,12,'#283748','center',true);this.text(g.pieces[i].filter(n=>n===57).length+'/4',x+61,y+37,11,'#283748','center');});
-    const boardArt=this.drawAsset('FG-BOARD-001',bx,by,size,size);
+    const boardArt=typeof this.drawAsset==='function'?
+      this.drawAsset('FG-BOARD-001',bx,by,size,size):
+      {status:'missing_asset_file',bounds:{x:bx,y:by,width:size,height:size}};
     const boardReady=boardArt.status==='ready',boardBounds=boardArt.bounds;
     if(boardReady){
       g.colors.forEach(color=>{
