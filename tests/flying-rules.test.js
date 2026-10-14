@@ -54,6 +54,16 @@ test('flight crossing hits the designated enemy home-corridor intersection only'
  const noCapture=new Flying(4,Math.random,{capture:false});noCapture.pieces[0][0]=11;noCapture.pieces[1][0]=54;
  roll(noCapture,5);noCapture.move(0);assert.equal(noCapture.pieces[1][0],54);
 });
+test('enemy stacks also block an attempted flight in the middle of its path',()=>{
+ const g=new Flying(2);g.pieces[0][0]=10;
+ const intermediate=g.ringIndex(0,20);
+ const enemy=(intermediate-paths.colors.B.startIndex+52)%52;
+ g.pieces[1][0]=g.pieces[1][1]=enemy;
+ roll(g,2);const move=g.move(0);
+ assert.equal(move.to,16);
+ assert.deepEqual(move.events.map(e=>e.type),['move','jump']);
+ assert.equal(g.pieces[1][0],enemy);
+});
 test('overshoot reflects in safe corridor, exact central finish wins',()=>{
  const bounce=new Flying(2);bounce.pieces[0][0]=55;roll(bounce,5);assert.equal(bounce.move(0).to,54);
  const exact=new Flying(2);exact.pieces[0]=[57,57,57,56];roll(exact,1);
