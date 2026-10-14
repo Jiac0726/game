@@ -46,6 +46,14 @@
 
 素材库中的新增水果素材也保留在独立 ZIP；当前微信适配器使用原页面映射，并未迁移原 DOM 前端的全部场景拼装。
 
+## 云端手绘素材整合（本分支）
+
+所有图片使用统一的 HTTPS 根地址 `https://www.gskj.cloud/game-assets/v1`，由 `src/asset-config.js` 的 `useLocalAssets: false` 控制；路径会追加 `assets/<分类>/<文件名>`，**不能**再增加 `/gamecenter` 或第二个 `/assets`。
+
+此版本将旧手绘分支的 `src/shared-ui-assets.js`、`src/shared-ui.js`、`src/ui-layout.js`、`src/fruit-assets.js`、`src/fruit-ui.js` 适配到新版玩法。大厅背景、部分装饰/按钮和水果九级贴图从云端按需加载；飞行棋继续沿用新版业务、棋盘、棋子与掷骰动画。现有 Canvas 基础绘制只作为网络图片尚未就绪或加载失败时的降级方案。源代码仓库不存储 PNG 文件。
+
+`node --test tests/*.test.js` 验证素材 ID 映射和本地 Canvas 集成；**自动测试不验证云端是否存在每个文件或微信真机是否能下载**。发布前需要逐项检查微信合法下载域名、真机网络、图片有无 404，以及飞行棋棋子实际坐标是否和手绘棋盘匹配。联机小程序 `online/miniprogram/config.js` 的 `envId` 仍需设置为实际部署 `flyingRoom` 的云开发环境。
+
 ## 功能与验证
 
 六款游戏：方块消除、水果合成、一笔连线、弹球打砖块、反应对决、五子棋。底部玩法/个人，玩法顶部个人/对战/派对。同屏对战与同机轮流挑战；未接入联网房间、云账号及云排行榜。
