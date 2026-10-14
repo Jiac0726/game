@@ -2,6 +2,7 @@ const {call}=require('../../lib/api');
 const {Flying}=require('../../lib/flying-model');
 const {buildFrames}=require('../../lib/flying-motion');
 const paths=require('../../lib/flying-paths');
+const artLayout=require('../../lib/flying-art-layout');
 const assets=require('../../lib/flying-assets').files;
 const config=require('../../config');
 const HEX={R:'#ed9887',Y:'#f0d16c',B:'#7ebfdc',G:'#94cda7'};
@@ -124,7 +125,18 @@ Page({
   if(!this.ctx)return;const c=this.ctx,s=this.size,k=s/paths.width;
   c.clearRect(0,0,s,s);c.fillStyle='#fffdf5';c.fillRect(0,0,s,s);
   const board=this.asset('FG-BOARD-001');
-  if(board)c.drawImage(board,0,0,s,s);
+  const fit=board?Math.min(s/board.width,s/board.height):1;
+  const boardBounds=board?{
+   x:(s-board.width*fit)/2,y:(s-board.height*fit)/2,
+   width:board.width*fit,height:board.height*fit
+  }:null;
+  if(board){
+   c.drawImage(board,boardBounds.x,boardBounds.y,boardBounds.width,boardBounds.height);
+   for(const color of Object.keys(HEX)){
+    const home=this.asset('FG-AIRPORT-'+color);
+    if(home){const a=artLayout.airportBounds(color,boardBounds);c.drawImage(home,a.x,a.y,a.width,a.height);}
+   }
+  }
   else {
    paths.ring.forEach((p,i)=>{c.fillStyle=Object.values(HEX)[i%4];c.fillRect(p.x*k-6,p.y*k-6,12,12);c.strokeStyle='#465446';c.strokeRect(p.x*k-6,p.y*k-6,12,12);});
    Object.keys(paths.colors).forEach(color=>{c.fillStyle=HEX[color];paths.colors[color].home.forEach(p=>c.fillRect(p.x*k-6,p.y*k-6,12,12));paths.colors[color].airport.forEach(p=>{c.beginPath();c.arc(p.x*k,p.y*k,10,0,Math.PI*2);c.stroke();});});
@@ -138,7 +150,8 @@ Page({
    const p=moving?this.animatedPoint:g.position(player,piece),key=p.x+','+p.y;(groups[key]||(groups[key]=[])).push({color,player,piece,p});}));
   Object.values(groups).forEach(group=>group.forEach((t,index)=>{
    const dx=group.length>1?(index%4-1.5)*10:0,dy=group.length>4?Math.floor(index/4)*10-5:0;
-   const x=t.p.x*k+dx,y=t.p.y*k+dy,image=this.asset('FG-TOKEN-'+t.color);
+   const at=board?artLayout.project(t.p,boardBounds):{x:t.p.x*k,y:t.p.y*k};
+   const x=at.x+dx,y=at.y+dy,image=this.asset('FG-TOKEN-'+t.color);
    if(image)c.drawImage(image,x-9,y-9,18,18);else{c.fillStyle=HEX[t.color];c.strokeStyle='#283748';c.beginPath();c.arc(x,y,8,0,Math.PI*2);c.fill();c.stroke();}
    c.fillStyle='#283748';c.font='10px sans-serif';c.textAlign='center';c.fillText(String(t.piece+1),x,y+3);
    if(!this.botAnimating&&this.data.myTurn&&this.data.legal.includes(t.piece)&&t.player===g.turn){c.lineWidth=2;c.beginPath();c.arc(x,y,12,0,Math.PI*2);c.stroke();this.hit.push({x,y,piece:t.piece});}
