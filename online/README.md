@@ -5,7 +5,7 @@
 ## 部署
 
 1. 把 `project.config.json` 的 `appid` 换成自己的小程序 AppID，开通该 AppID 的云开发环境。
-2. 在 `miniprogram/config.js` 填 `envId`，填 `assetBaseUrl`（外置素材库 assets/ 的父目录）。将飞行棋素材包的 `assets/FLYING/` 上传至该 HTTPS 地址；在小程序后台配置合法下载域名。未填素材地址时采用 Canvas 绘制棋盘和棋子，规则仍可用。
+2. 在 `miniprogram/config.js` 填实际部署 `flyingRoom` 的 `envId`；`assetBaseUrl` 已配置为 `https://www.gskj.cloud/game-assets/v1`（外置素材库 `assets/` 的父目录，不包含 `/gamecenter`）。将飞行棋素材包的 `assets/FLYING/` 上传至该 HTTPS 地址；在小程序后台配置合法下载域名。未填素材地址时采用 Canvas 绘制棋盘和棋子，规则仍可用。
 3. 云开发数据库新建 `flying_rooms` 集合，权限设为自定义 `{ "read": false, "write": false }`，仅云函数访问；示例见 `database.rules.json`。不要开放客户端直接读写。
 4. 右键 `cloudfunctions/flyingRoom` → 上传并部署（云端安装依赖）。云函数使用 Node.js 18 或更新的可用运行时；超时设为至少10秒。在同一云环境部署，并检查事务权限。
 5. 真机体验：1—4 个微信账号参与，其余座位可由电脑机器人填充。房主建房时选择 0—3 台电脑与难度，等待室也可修改机器人数量、难度；所有真人准备后房主开始。四个真人时仍可按原方式分享邀请。
