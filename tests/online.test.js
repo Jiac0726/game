@@ -18,7 +18,11 @@ test('server turn, revision and action validation; client die and identity ignor
  let r=started();rejects(r,'b',req(r,'roll',{uid:'a',die:6}),'TURN');rejects(r,'e',{action:'get'},'FORBIDDEN');
  rejects(r,'a',{action:'roll',revision:r.revision-1,requestId:'stale_123'},'STALE');
  rejects(r,'a',req(r,'move',{piece:0}),'MOVE');
- r=apply(r,'a',req(r,'roll',{die:6}),10,()=>0);assert.equal(r.game.die,1);assert.equal(r.game.turn,1);assert.equal(r.game.phase,'roll');
+ r=apply(r,'a',req(r,'roll',{die:6}),10,()=>0);
+ assert.equal(r.lastRoll.die,1,'server rolls 1 and ignores the client-supplied die');
+ assert.equal(r.game.die,0,'automatic pass resets the pending die');
+ assert.equal(r.game.turn,1,'no available move advances to the next player');
+ assert.equal(r.game.phase,'roll');
 });
 test('retry is idempotent after version advanced, and invalid moves do not mutate',()=>{
  let r=started(),e=req(r,'roll');r=apply(r,'a',e,10,()=>.999);assert.equal(r.game.die,6);
