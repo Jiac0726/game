@@ -8,12 +8,12 @@
 
 素材包：`game-asset-library.zip`（单独交付，879 张 PNG）。解压后保留 `assets/` 下的分类及文件名。
 
-1. 将整个 `assets/` 目录上传到自己的 HTTPS 对象存储或 CDN。例如公开路径结构为 `https://你的域名/game-assets/v1/assets/BG/...png`。
+1. 将整个 `assets/` 目录上传到自己的 HTTPS 对象存储或 CDN。当前已使用 `https://www.gskj.cloud/game-assets/v1/assets/BG/...png`。CloudBase 的 HTTP 网关根路由 `/` 指向 `gamecenter` 静态托管应用，因此公网 URL **不需要**添加 `/gamecenter`。
 2. 修改 `src/asset-config.js`：
 
    ```js
    module.exports = {
-     baseUrl: 'https://你的域名/game-assets/v1',
+     baseUrl: 'https://www.gskj.cloud/game-assets/v1',
      useLocalAssets: false
    };
    ```
@@ -25,7 +25,7 @@
 - https://github.com/wechat-miniprogram/minigame-demo
 - https://developers.weixin.qq.com/minigame/dev/guide/base-ability/network.html
 
-当前没有提供真实素材托管域名，所以 `baseUrl` 留空。留空时显示配置提示，使用内置绘制组件，游戏规则仍可运行；这不代表远程素材已经接通。
+当前已配置 `www.gskj.cloud` 的 HTTPS 素材域名，已有单张 PNG 经浏览器验证可以打开；全量素材及微信真机加载仍需验收。图片失败时使用内置绘制组件，不代表远程素材全部可用。
 
 本地临时验证：把素材包中的 `assets/` 解压到项目根目录，将 `useLocalAssets` 设为 `true`。图片目录已在 `.gitignore` 中排除，正式配置改回远程地址。开发工具上传本地模式时会包含图片，请自行检查包大小。
 
@@ -54,7 +54,7 @@
 node --test tests/*.test.js
 ```
 
-测试覆盖游戏规则、界面流程、素材 URL 映射与尺寸元数据、布局命中及图片内存复用。远程真实地址、微信开发者工具和真机尚未验证。图片加载失败时使用内置绘制组件；图片只缓存于当前进程，尚未实现跨启动磁盘缓存。
+测试覆盖游戏规则、界面流程、素材 URL 映射与尺寸元数据、布局命中及图片内存复用。微信开发者工具和真机的完整远程素材加载尚未验证。图片加载失败时使用内置绘制组件；图片只缓存于当前进程，尚未实现跨启动磁盘缓存。
 
 ## 飞行棋手绘扩展
 
