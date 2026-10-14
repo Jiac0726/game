@@ -6,6 +6,8 @@ const PATHS = require('./flying-paths');
 const artLayout = require('./flying-art-layout');
 const COLOR = {Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
 const NAME = {Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
+// Twice the previous 18px sprite size; the draw position remains center-anchored.
+const TOKEN_SIZE=36,TOKEN_RADIUS=16,TOKEN_SELECT_RADIUS=21;
 function install(App) {
   const p=App.prototype, render=p.render, update=p.update, pause=p.pause;
   p.isFlyingBot=function(index){return !!this.flyingBotSeats&&this.flyingBotSeats.includes(index);};
@@ -145,8 +147,14 @@ function install(App) {
       const point=moving?frame.point:g.position(player,piece);
       const at=boardReady?artLayout.project(point,boardBounds):{x:bx+point.x*scale,y:by+point.y*scale};
       const x=at.x,y=at.y;
-      if(!this.flyingArt('FG-TOKEN-'+color,x-9,y-9,18,18)){this.circle(x,y,8,COLOR[color]);this.text(piece+1,x,y,9,'#283748','center',true);}
-      if(player===g.turn&&legal.includes(piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;this.ctx.beginPath();this.ctx.arc(x,y,11,0,Math.PI*2);this.ctx.stroke();}
+      if(!this.flyingArt('FG-TOKEN-'+color,x-TOKEN_SIZE/2,y-TOKEN_SIZE/2,TOKEN_SIZE,TOKEN_SIZE)){
+        this.circle(x,y,TOKEN_RADIUS,COLOR[color]);
+        this.text(piece+1,x,y,13,'#283748','center',true);
+      }
+      if(player===g.turn&&legal.includes(piece)){
+        this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;
+        this.ctx.beginPath();this.ctx.arc(x,y,TOKEN_SELECT_RADIUS,0,Math.PI*2);this.ctx.stroke();
+      }
     }));
     const fx=123,fy=603;
     if(this.flyingRolling>0) {
