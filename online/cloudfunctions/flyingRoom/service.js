@@ -24,7 +24,7 @@ function createRoom(id,uid,name,now,rules,bots){
  const room={
   id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',
   game:null,rules:normalizeRules(rules),botConfig:{count:0,difficulty:'normal'},
-  revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null,lastMove:null
+  revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null,lastMove:null,motion:null
  };
  if(bots!==undefined&&bots!==null)
   configureBots(room,bots.count===undefined?0:bots.count,bots.difficulty||'normal');
@@ -37,7 +37,7 @@ function state(g){
 }
 // Advance all consecutive AI turns within the same room transaction.
 // No unauthenticated action, client dice value or cloud timer may move a bot.
-function runBots(room,now,random){
+function runBots(room,now,random,timeline=[]){
  if(room.status!=='playing')return;
  const g=hydrate(room.game,random);
  for(let step=0;step<40 && g.phase!=='done';step++){
@@ -46,12 +46,17 @@ function runBots(room,now,random){
   if(g.phase==='roll'){
    const die=g.roll();
    room.lastRoll={id:'bot_'+room.revision+'_'+step,die,player:g.turn,bot:true};
+   timeline.push({kind:'roll',player:g.turn,die});
    if(!g.legal().length)g.pass();
   }else if(g.phase==='choose'){
    const choice=chooseMove(g,current.difficulty,random);
    if(choice===null){g.pass();continue;}
+   const before=g.pieces.map(p=>p.slice()),die=g.die;
    const movement=g.move(choice);
    if(!movement)fail('BOT_MOVE','机器人产生无效走法');
+   timeline.push({kind:'move',player:movement.player,piece:movement.piece,
+    from:movement.from,to:movement.to,die,segments:movement.events,
+    captures:movement.captures,before,after:g.pieces.map(p=>p.slice())});
    room.lastMove={id:'bot_'+room.revision+'_'+step,bot:true,...movement};
   }else break;
  }
@@ -101,7 +106,8 @@ function apply(original,uid,e,now,random=Math.random){
     fail('NOT_READY','需要四个座位（真人或电脑）且真人全部准备');
    room.game=state(new Flying(4,Math.random,room.rules));
    room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;room.lastMove=null;
-   runBots(room,now,random);
+   const timeline=[];runBots(room,now,random,timeline);
+   if(timeline.length)room.motion={id:e.requestId,events:timeline};
   }else{
    if(room.status!=='playing')fail('PHASE','对局尚未开始或已经结束');
    const g=hydrate(room.game,random);
@@ -123,7 +129,8 @@ function apply(original,uid,e,now,random=Math.random){
     }else fail('ACTION','未知操作');
    }
    room.game=state(g);room.status=g.phase==='done'?'done':'playing';room.deadline=now+TURN_MS;
-   runBots(room,now,random);
+   const timeline=[];runBots(room,now,random,timeline);
+   if(timeline.length)room.motion={id:e.requestId,events:timeline};
   }
   room.seen.push({uid,id:e.requestId});
   room.seen=room.seen.slice(-64);
@@ -139,7 +146,7 @@ function view(room,uid){
   }:null),seat,isHost:room.host===uid,status:room.status,game:room.game,
   rules:room.rules,botConfig:room.botConfig||{count:0,difficulty:'normal'},
   revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,
-  lastRoll:room.lastRoll,lastMove:room.lastMove
+  lastRoll:room.lastRoll,lastMove:room.lastMove,motion:room.motion||null
  };
 }
 module.exports={createRoom,apply,view,configureBots,runBots};
