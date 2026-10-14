@@ -7,6 +7,8 @@ const assets=require('../../lib/flying-assets').files;
 const config=require('../../config');
 const HEX={R:'#ed9887',Y:'#f0d16c',B:'#7ebfdc',G:'#94cda7'};
 const NAME={R:'红方',Y:'黄方',B:'蓝方',G:'绿方'};
+// Double the original 18px token sprites; keep the center coordinates unchanged.
+const TOKEN_SIZE=36,TOKEN_RADIUS=16,TOKEN_SELECT_RADIUS=21,TOKEN_TAP_RADIUS=23;
 Page({
  data:{room:{status:'loading'},seats:[],busy:false,connected:false,error:'',legal:[],seconds:60,pending:false,rolling:false,
   botAnimating:false,botStatus:'',botDie:0,botCountIndex:0,botDifficultyIndex:1,botCountLabels:['0台','1台','2台','3台'],botDifficultyLabels:['简单','普通','困难']},
@@ -149,15 +151,15 @@ Page({
    const moving=this.animatedPoint&&this.animatedPoint.player===player&&this.animatedPoint.piece===piece;
    const p=moving?this.animatedPoint:g.position(player,piece),key=p.x+','+p.y;(groups[key]||(groups[key]=[])).push({color,player,piece,p});}));
   Object.values(groups).forEach(group=>group.forEach((t,index)=>{
-   const dx=group.length>1?(index%4-1.5)*10:0,dy=group.length>4?Math.floor(index/4)*10-5:0;
+   const dx=group.length>1?(index%4-1.5)*18:0,dy=group.length>4?Math.floor(index/4)*18-9:0;
    const at=board?artLayout.project(t.p,boardBounds):{x:t.p.x*k,y:t.p.y*k};
    const x=at.x+dx,y=at.y+dy,image=this.asset('FG-TOKEN-'+t.color);
-   if(image)c.drawImage(image,x-9,y-9,18,18);else{c.fillStyle=HEX[t.color];c.strokeStyle='#283748';c.beginPath();c.arc(x,y,8,0,Math.PI*2);c.fill();c.stroke();}
-   c.fillStyle='#283748';c.font='10px sans-serif';c.textAlign='center';c.fillText(String(t.piece+1),x,y+3);
-   if(!this.botAnimating&&this.data.myTurn&&this.data.legal.includes(t.piece)&&t.player===g.turn){c.lineWidth=2;c.beginPath();c.arc(x,y,12,0,Math.PI*2);c.stroke();this.hit.push({x,y,piece:t.piece});}
+   if(image)c.drawImage(image,x-TOKEN_SIZE/2,y-TOKEN_SIZE/2,TOKEN_SIZE,TOKEN_SIZE);else{c.fillStyle=HEX[t.color];c.strokeStyle='#283748';c.beginPath();c.arc(x,y,TOKEN_RADIUS,0,Math.PI*2);c.fill();c.stroke();}
+   c.fillStyle='#283748';c.font='12px sans-serif';c.textAlign='center';c.fillText(String(t.piece+1),x,y+4);
+   if(!this.botAnimating&&this.data.myTurn&&this.data.legal.includes(t.piece)&&t.player===g.turn){c.lineWidth=2;c.beginPath();c.arc(x,y,TOKEN_SELECT_RADIUS,0,Math.PI*2);c.stroke();this.hit.push({x,y,piece:t.piece});}
   }));
   if(this.data.rolling){const image=this.asset('FG-DICE-'+String(this.diceFrame||0).padStart(2,'0'));if(image)c.drawImage(image,s/2-20,s/2-20,40,40);}
  },
- boardTap(e){if(this.data.busy||this.data.rolling||this.botAnimating||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<20)this.command('move',{piece:sorted[0].piece});},
+ boardTap(e){if(this.data.busy||this.data.rolling||this.botAnimating||!this.hit)return;const t=e.changedTouches[0];const sorted=this.hit.map(p=>Object.assign({},p,{d:Math.hypot(t.x-p.x,t.y-p.y)})).sort((a,b)=>a.d-b.d);if(sorted[0]&&sorted[0].d<TOKEN_TAP_RADIUS)this.command('move',{piece:sorted[0].piece});},
  animateDie(){if(this.botAnimating)return;clearTimeout(this.animation);this.setData({rolling:true});this.diceFrame=0;const frame=()=>{if(this.hidden||this.destroyed)return;this.draw();this.diceFrame++;if(this.diceFrame<16)this.animation=setTimeout(frame,80);else{this.setData({rolling:false});this.draw();}};frame();}
 });
