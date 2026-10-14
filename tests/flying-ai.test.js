@@ -14,7 +14,7 @@ test('AI modes random, prioritize captures, and evaluate opponent counter-captur
  const g=new Flying(2);g.turn=0;g.phase='choose';g.die=2;
  g.pieces[0]=[1,7,-1,-1];
  g.pieces[1][0]=(g.ringIndex(0,3)-paths.colors.B.startIndex+52)%52;
- assert.equal(chooseMove(g,'easy',()=>.4),1);
+ assert.equal(chooseMove(g,'easy',()=>.7),1);
  assert.equal(chooseMove(g,'normal',()=>0),0);
  assert.equal(normalizeDifficulty('invalid'),'normal');
  const safe=new Flying(2);safe.turn=0;safe.phase='choose';safe.die=1;
@@ -58,8 +58,8 @@ test('bot moves are server-side, preserve turn order, have no human UID and retr
  room=apply(room,'host',request(room,'ready'),1);
  room=apply(room,'host',request(room,'start'),2);
  const roll=request(room,'roll');
- room=apply(room,'host',roll,3,()=>die(6));
- assert.equal(room.game.die,6);assert.equal(room.game.turn,0);
+ room=apply(room,'host',roll,3,()=>die(4));
+ assert.equal(room.game.die,4);assert.equal(room.game.turn,0);
  const move=request(room,'move',{piece:0});
  room=apply(room,'host',move,4,()=>die(4));
  assert.equal(room.game.turn,0);assert.equal(room.game.phase,'roll');
