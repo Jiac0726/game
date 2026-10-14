@@ -3,6 +3,7 @@ const { Flying } = require('./flying-model');
 const { chooseMove } = require('./flying-ai');
 const { buildFrames } = require('./flying-motion');
 const PATHS = require('./flying-paths');
+const artLayout = require('./flying-art-layout');
 const COLOR = {Y:'#F8D965',B:'#7CC6E8',R:'#F39C8C',G:'#A8DAB9'};
 const NAME = {Y:'黄方',B:'蓝方',R:'红方',G:'绿方'};
 function install(App) {
@@ -123,7 +124,14 @@ function install(App) {
     const bx=9,by=183,size=357,scale=size/PATHS.width;
     const players={Y:[15,120],B:[280,120],R:[15,547],G:[280,547]};
     g.colors.forEach((color,i)=>{const [x,y]=players[color];this.rect(x,y,80,52,i===g.turn?COLOR[color]:'#FFFCF3');this.flyingArt('FG-AVATAR-'+color,x+3,y+3,43,43);this.text(this.isFlyingBot(i)?'AI'+NAME[color]:NAME[color],x+61,y+18,12,'#283748','center',true);this.text(g.pieces[i].filter(n=>n===57).length+'/4',x+61,y+37,11,'#283748','center');});
-    if(!this.flyingArt('FG-BOARD-001',bx,by,size,size)) {
+    const boardArt=this.drawAsset('FG-BOARD-001',bx,by,size,size);
+    const boardReady=boardArt.status==='ready',boardBounds=boardArt.bounds;
+    if(boardReady){
+      g.colors.forEach(color=>{
+        const a=artLayout.airportBounds(color,boardBounds);
+        this.flyingArt('FG-AIRPORT-'+color,a.x,a.y,a.width,a.height);
+      });
+    }else{
       this.rect(bx,by,size,size,'#FFFCF3');
       PATHS.ring.forEach((node,i)=>this.rect(bx+node.x*scale-7,by+node.y*scale-7,14,14,Object.values(COLOR)[i%4],2));
       Object.keys(PATHS.colors).forEach(color=>PATHS.colors[color].home.forEach(node=>this.rect(bx+node.x*scale-7,by+node.y*scale-7,14,14,COLOR[color],2)));
@@ -132,7 +140,9 @@ function install(App) {
     g.colors.forEach((color,player)=>g.pieces[player].forEach((progress,piece)=>{
       if(progress===57)return;
       const moving=frame&&frame.point&&frame.point.player===player&&frame.point.piece===piece;
-      const point=moving?frame.point:g.position(player,piece),x=bx+point.x*scale,y=by+point.y*scale;
+      const point=moving?frame.point:g.position(player,piece);
+      const at=boardReady?artLayout.project(point,boardBounds):{x:bx+point.x*scale,y:by+point.y*scale};
+      const x=at.x,y=at.y;
       if(!this.flyingArt('FG-TOKEN-'+color,x-9,y-9,18,18)){this.circle(x,y,8,COLOR[color]);this.text(piece+1,x,y,9,'#283748','center',true);}
       if(player===g.turn&&legal.includes(piece)){this.ctx.strokeStyle='#283748';this.ctx.lineWidth=1.5;this.ctx.beginPath();this.ctx.arc(x,y,11,0,Math.PI*2);this.ctx.stroke();}
     }));
