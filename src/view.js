@@ -30,8 +30,14 @@ function footer(app){
  const c=app.ctx;
  label(c,'你小子给我飞起来 · v1.0 休闲飞行棋',187,785,12,soft,'center');
  if(app.message){
-  box(c,21,738,333,31,'#ffefdd',null,9);
-  label(c,app.message.slice(0,38),187,754,11,'#9f5145','center');
+  box(c,21,733,333,37,'#ffefdd',null,9);
+  // Canvas text has no native wrapping; draw two centered clipped lines.
+  c.save();
+  c.beginPath();c.rect(27,735,321,32);c.clip();
+  const chars=String(app.message);
+  label(c,chars.slice(0,24),187,744,11,'#9f5145','center');
+  if(chars.length>24)label(c,chars.slice(24,51),187,759,11,'#9f5145','center');
+  c.restore();
  }
 }
 function home(app){
@@ -89,29 +95,35 @@ function setup(app){
 }
 function waiting(app){
  const r=app.room,c=app.ctx;
- heading(app,'好友联机 · 等待开局','好友分享邀请 · 房间最多四个座位');
+ // WeChat's fixed system capsule occupies the top-right corner. Keep the
+ // back button above the title and reserve the first 90px for system UI.
  button(app,16,31,68,42,'返回',()=>app.exitRoom(),'#f8d6cb');
- box(c,24,133,327,65,panel);
- label(c,'房间码：'+r.id.slice(0,16),187,158,14,ink,'center');
- label(c,'尾号：'+r.id.slice(16),187,183,13,soft,'center');
+ label(c,'好友联机 · 等待开局',187,108,23,ink,'center','bold');
+ label(c,'好友分享邀请 · 房间最多四个座位',187,143,13,soft,'center');
+ box(c,24,161,327,65,panel);
+ label(c,'房间码：'+r.id.slice(0,16),187,183,14,ink,'center');
+ label(c,'尾号：'+r.id.slice(16),187,207,13,soft,'center');
  r.seats.forEach((s,i)=>{
-  const col=['R','Y','B','G'][i],x=27+(i%2)*164,y=223+Math.floor(i/2)*108;
-  box(c,x,y,156,97,s?'#fffef6':'#ebeae3',C[col]);
+  const col=['R','Y','B','G'][i],x=27+(i%2)*164,y=239+Math.floor(i/2)*103;
+  box(c,x,y,156,93,s?'#fffef6':'#ebeae3',C[col]);
   label(c,N[col],x+12,y+21,16,C[col],'left','bold');
-  label(c,(s&&s.name||'等待好友').slice(0,10),x+11,y+50,15,ink);
-  label(c,s?(s.bot?'电脑 · 已准备':s.ready?'已准备':'未准备'):'空座位',x+11,y+77,12,soft);
+  label(c,(s&&s.name||'等待好友').slice(0,10),x+11,y+49,15,ink);
+  label(c,s?(s.bot?'电脑 · 已准备':s.ready?'已准备':'未准备'):'空座位',x+11,y+73,12,soft);
  });
  if(r.isHost){
-  button(app,27,456,155,45,'AI 数量 '+app.botCount,()=>{app.botCount=(app.botCount+1)%4;},'#d8e9d8',app.busy);
-  button(app,193,456,155,45,'难度 '+({easy:'简单',normal:'普通',hard:'困难'}[app.difficulty]),()=>{
+  button(app,27,451,155,43,'AI 数量 '+app.botCount,()=>{app.botCount=(app.botCount+1)%4;},'#d8e9d8',app.busy);
+  button(app,193,451,155,43,'难度 '+({easy:'简单',normal:'普通',hard:'困难'}[app.difficulty]),()=>{
    const v=['easy','normal','hard'];app.difficulty=v[(v.indexOf(app.difficulty)+1)%3];
   },'#d8e9d8',app.busy);
-  button(app,27,512,321,47,'保存 AI 设置',()=>app.command('setBots',{count:app.botCount,difficulty:app.difficulty}),panel,app.busy);
+  button(app,27,504,321,44,'保存 AI 设置',()=>app.command('setBots',{count:app.botCount,difficulty:app.difficulty}),panel,app.busy);
  }
  const own=r.seats[r.seat],canBegin=r.seats.every(s=>s&&(s.ready||s.bot));
- button(app,27,575,321,49,own&&own.ready?'取消准备':'我准备好了',()=>app.command('ready'),'#a7dfbc',app.busy);
- if(r.isHost)button(app,27,632,321,49,'四人到齐，开始游戏',()=>app.command('start'),'#f6d675',app.busy||!canBegin);
- button(app,27,687,321,43,'邀请好友进入',()=>app.share(),'#dbeaf6');
+ button(app,27,559,321,49,own&&own.ready?'取消准备':'我准备好了',()=>app.command('ready'),'#a7dfbc',app.busy);
+ if(r.isHost)button(app,27,618,321,48,'四人到齐，开始游戏',()=>app.command('start'),'#f6d675',app.busy||!canBegin);
+ const hasVacancy=r.seats.includes(null);
+ button(app,27,677,321,42,hasVacancy?'邀请好友进入':'座位已满 · 先减少 AI',
+  ()=>hasVacancy?app.share():app.say('将 AI 数量调到 0 并保存后，可以邀请三位好友'),
+  '#dbeaf6',app.busy);
 }
 function drawBoard(app,game,bx,by,size,canTap){
  const c=app.ctx;
