@@ -32,6 +32,7 @@ function createHandler(deps={}){
  const clock=deps.now||Date.now;
  const logger=deps.logger||console;
  return async function handle(event={}){
+  let stage='init';
   try{
    const uid=getUID();
    if(typeof uid!=='string'||!uid)failure('AUTH','无法获取微信身份');
@@ -41,6 +42,7 @@ function createHandler(deps={}){
    if(!db||typeof db.collection!=='function'||typeof db.runTransaction!=='function')
     failure('CONFIG','微信云数据库未就绪，请确认启用云开发数据库');
    if(event.action==='create'){
+    stage='create';
     const id=bytes(16).toString('hex');
     const room=createRoom(id,uid,event.name,now,event.rules,event.bots);
     // add with explicit _id refuses a duplicate instead of replacing another room.
@@ -53,6 +55,7 @@ function createHandler(deps={}){
     failure('ROOM','房间码无效');
    const ref=db.collection(COLLECTION).doc(event.roomId);
    if(event.action==='get'){
+    stage='get';
     // No mutation: skip transaction while still enforcing membership/expiry in apply.
     const original=readRoom(await ref.get());
     const current=apply(original,uid,event,now);
@@ -62,6 +65,7 @@ function createHandler(deps={}){
    // runTransaction retries conflicting writes; service.apply then revalidates
    // the client's room revision and unique request ID against the new state.
    let latest;
+   stage='transaction';
    await db.runTransaction(async tx=>{
     const doc=tx.collection(COLLECTION).doc(event.roomId);
     const original=readRoom(await doc.get());
@@ -78,9 +82,18 @@ function createHandler(deps={}){
    if(CLIENT_ERRORS.has(e.code)||e.code==='CONFIG')
     return {ok:false,code:e.code,message:e.message};
    // Do not return raw database diagnostics or secrets to the mini-game.
-   logger.error('flyingRoom cloud database failure',e.code||'SERVER');
+   // Log server-side diagnostics WITHOUT echoing SDK/database details to clients.
+   // In particular, create success + subsequent get failure requires a different
+   // investigation than a failure on a transactional command.
+   logger.error('flyingRoom cloud database failure',{
+    stage,
+    action:typeof event.action==='string'?event.action.slice(0,30):'unknown',
+    code:String(e.code||e.errCode||'SERVER').slice(0,80),
+    message:String(e.message||e.errMsg||e).slice(0,500)
+   });
    return {ok:false,code:'DATABASE',
-    message:'云数据库操作失败，请检查新环境是否创建 flying_rooms 集合和云函数日志'};
+    message:'云数据库'+({get:'读取',transaction:'事务操作',create:'建房写入'}[stage]||'访问')+
+      '失败，请查看 flyingRoom 云函数日志'};
   }
  };
 }
