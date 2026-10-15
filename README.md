@@ -1,45 +1,20 @@
-# 手绘飞行棋 · 独立微信小程序
+# 手绘飞行棋 · 独立微信小游戏
 
-这是独立的微信小程序工程，**不是微信小游戏合集**。打开本仓库根目录即可使用微信开发者工具导入，不要再导入原 `game` 目录里的小游戏配置。飞行棋代码独立维护；原小游戏合集不受影响。
+这是独立的 **微信小游戏**（`compileType: game`），不是 WXML / WXSS 微信小程序。入口 `game.js`，由 Canvas 完成首页、创建房间、邀请、准备、棋盘、掷骰、棋子与结算。
 
-## 已有功能
+- 支持 1 人 + 3 台本地 AI 的离线挑战
+- 在线 1–4 真人 + 0–3 云端 AI，微信原生分享邀请码，重连、超时跳过与重赛
+- 复用 `flying-model`、`flying-ai`、`flying-motion`、云函数 `flyingRoom`
+- 远程素材沿用 `www.gskj.cloud/game-assets/v1/assets/FLYING/`，不捆绑 PNG
 
-- 4 个座位，支持 1–4 位真人和最多 3 位云端 AI
-- 微信好友分享邀请、重连原房间、房间准备和房主开始
-- 服务器掷骰、事务同步、请求幂等、60 秒超时、24 小时过期
-- 可配置起飞点数、连投、跳跃、飞越、叠机、撞机、终点反弹
-- 手绘棋盘、棋子放大 2 倍、16 帧骰子、机器人逐格动画
-- 图片放在独立云端素材库，不打入安装包
+## 初始化
 
-## 首次部署
+1. 在微信开发者工具中导入仓库根目录，选择**小游戏**，在 `project.config.json` 设置自己对应的小游戏 AppID。它与普通小程序 AppID 的类型须匹配。
+2. 开通云开发，新建数据库集合 `flying_rooms`，设置仅云函数读写（`database.rules.json`）。
+3. 部署根目录 `cloudfunctions/flyingRoom` 云函数，安装服务端依赖。在 `src/config.js` 填云函数所在环境的真实 `envId`。
+4. 将 `www.gskj.cloud` 配置为相应的合法网络资源域名；检查棋盘、棋子和骰子 PNG 的 200 状态。
+5. 真机执行建房、分享、两手机加入、准备、开始、操作、重连、机器人回合和重赛验收。
 
-1. 微信开发者工具 → 导入项目 → 选择**本仓库根目录** → 项目类型选 **小程序**。把 `project.config.json` 的 `appid` 替换为你自己的**小程序 AppID**。请不要直接复用小游戏 AppID；小游戏和小程序类型不同。
-2. 打开 `miniprogram/config.js`，设置 `envId` 为你为本程序开通并部署 `flyingRoom` 的云开发环境。不要把旧项目的环境 ID 未核实就直接照抄。
-3. 云开发数据库创建集合 `flying_rooms`，权限禁止客户端读写（可参考 `database.rules.json`）。云函数通过服务端 SDK 访问。
-4. 右键 `cloudfunctions/flyingRoom` → 「上传并部署：云端安装依赖」。选择相同云环境并确认支持事务。
-5. 云端素材根地址已设置为 `https://www.gskj.cloud/game-assets/v1`，请在微信后台配置相应合法下载域名并验证 PNG 资源可用。
-6. 使用两个或更多微信账号真机验收建房、准备、邀请、掷骰、逐格走棋、重新进入房间与重赛。
+本小游戏没有 `app.wxss` / `app.wxml` / `miniprogramRoot`，不会把小程序文件当作小游戏打包。不要把旧 `standalone/flying-chess-wechat` 小程序项目直接覆盖到这个分支。
 
-项目结构：
-
-```text
-project.config.json
-miniprogram/
-  app.js
-  app.json
-  app.wxss
-  config.js
-  lib/
-  pages/index/
-  pages/room/
-cloudfunctions/
-  flyingRoom/
-database.rules.json
-tests/
-```
-
-在仓库根目录运行 `node --test tests/*.test.js` 进行离线结构与规则检查。**本地测试不等同于云函数成功部署或多手机联机通过。**
-
-旧版本小游戏合集仍在 `Jiac0726/game` 的 `main` / `feat/cloud-handdrawn-ui-20261014` 分支。此独立工程可通过 `standalone/flying-chess-wechat` 分支检出或下载 ZIP。
-
-注：主棋盘使用云端已上传的 `FG-BOARD-001.png`；最近新绘制的四角独立停机坪棋盘图尚未接入云端素材地址，不能把它误认为已发布。
+运行 `node --test tests/*.test.js` 做离线回归。云开发环境、微信分享接口、图片下载及真实多端同步仍需真机验证。最近生成的四个小停机坪新版棋盘，尚未替换已托管的 `FG-BOARD-001.png`，不要视为已经发布。

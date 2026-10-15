@@ -1,10 +1,8 @@
 {
-  "description": "手绘飞行棋：独立微信小程序（四人联机 / AI）",
-  "compileType": "miniprogram",
+  "description": "独立微信小游戏：手绘联机飞行棋",
+  "compileType": "game",
   "appid": "touristappid",
-  "projectname": "flying-chess-standalone",
-  "miniprogramRoot": "miniprogram/",
-  "cloudfunctionRoot": "cloudfunctions/",
+  "projectname": "flying-chess-minigame",
   "setting": {
     "es6": true,
     "minified": true,
@@ -18,11 +16,19 @@
       },
       {
         "type": "folder",
+        "value": "cloudfunctions"
+      },
+      {
+        "type": "folder",
         "value": ".github"
       },
       {
         "type": "file",
         "value": "README.md"
+      },
+      {
+        "type": "file",
+        "value": "database.rules.json"
       }
     ]
   }

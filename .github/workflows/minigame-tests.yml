@@ -1,19 +1,15 @@
-name: Standalone flying chess tests
+name: Flying chess mini-game tests
 on:
   push:
     branches:
-      - standalone/flying-chess-wechat
-  pull_request:
+      - standalone/flying-chess-minigame
   workflow_dispatch:
 jobs:
   test:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Check self-contained app
-        run: node --test tests/*.test.js
+      - run: node --test tests/*.test.js
