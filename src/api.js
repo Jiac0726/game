@@ -46,6 +46,12 @@ function createClient(wxApi,options={}){
   if(!result||!result.ok){
    const error=new Error(result&&result.message||'云函数调用失败');
    error.code=result&&result.code||'SERVER';
+   // Preserve structured diagnostics for the UI modal and one-tap copying.
+   // Server only sends raw SDK detail in explicitly enabled debug mode.
+   error.stage=result&&result.stage;
+   error.action=result&&result.action||action;
+   error.dbCode=result&&result.dbCode;
+   error.detail=result&&result.detail;
    throw error;
   }
   return result;
