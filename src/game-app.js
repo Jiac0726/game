@@ -194,8 +194,11 @@ class FlyingChessGame{
  async refresh(){
   if(!this.roomId||this.polling||this.hidden)return;
   this.polling=true;
-  try{const r=await this.api.call('get',{roomId:this.roomId});this.accept(r);}
-  catch(e){this.say('连接中断：'+e.message);}
+  try{
+   const r=await this.api.call('get',{roomId:this.roomId});this.accept(r);
+   // Do not leave an old polling error on screen once polling has recovered.
+   if(this.message.startsWith('连接中断：'))this.say('');
+  }catch(e){this.say('连接中断：'+e.message);}
   finally{this.polling=false;}
  }
  schedulePoll(delay){
@@ -228,7 +231,13 @@ class FlyingChessGame{
    if(action==='leave'){this.room=null;this.roomId='';this.scene='home';}
    this.say('');
   }catch(e){
-   if(e.code&&e.code!=='SERVER'){
+   // A transient database/network failure may have happened AFTER commit.
+   // Keep requestId for idempotent retry; drop it only when server definitively
+   // rejected the action without applying its mutation.
+   const rejected=new Set(['CONFIG','AUTH','ROOM','EXPIRED','FULL','STARTED',
+    'FORBIDDEN','PLAYING','REQUEST','STALE','HOST','PHASE','NOT_READY',
+    'TURN','MOVE','TIMEOUT','TOO_EARLY','BOTS','ACTION','BOT_LIMIT','BOT_MOVE']);
+   if(rejected.has(e.code)){
     this.pending=null;this.wx.removeStorageSync&&this.wx.removeStorageSync('flyingPending');
    }
    this.say(e.message);
