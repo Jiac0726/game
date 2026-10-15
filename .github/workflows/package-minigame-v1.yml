@@ -7,6 +7,7 @@ on:
       - 'game.js'
       - 'game.json'
       - 'project.config.json'
+      - 'database.rules.json'
       - 'src/**'
       - 'cloudfunctions/flyingRoom/**'
       - 'sql/**'
@@ -33,12 +34,13 @@ jobs:
           node --test tests/*.test.js
       - name: Assemble complete source archive
         run: |
-          zip -q -r flying-chess-v1.0-source.zip game.js game.json project.config.json src cloudfunctions sql README.md docs
+          zip -q -r flying-chess-v1.0-source.zip game.js game.json project.config.json database.rules.json src cloudfunctions sql README.md docs
           unzip -t flying-chess-v1.0-source.zip
           unzip -Z -1 flying-chess-v1.0-source.zip > /tmp/v1-files.txt
           grep -Fxq 'game.js' /tmp/v1-files.txt
           grep -Fxq 'src/player-profile.js' /tmp/v1-files.txt
           grep -Fxq 'cloudfunctions/flyingRoom/index.js' /tmp/v1-files.txt
+          grep -Fxq 'database.rules.json' /tmp/v1-files.txt
           grep -Fxq 'docs/v1.0-release-and-review.md' /tmp/v1-files.txt
       - uses: actions/upload-artifact@v4
         with:
