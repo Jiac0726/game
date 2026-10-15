@@ -106,6 +106,28 @@ class FlyingChessGame{
   if(closest&&closest.distance<=23)this.move(closest.piece);
  }
  say(message){this.message=String(message||'');this.render();}
+ reportCloudError(error,action){
+  this.say(error&&error.message||'云函数调用失败');
+  if(!error||error.code!=='DATABASE'||!this.wx.showModal)return;
+  const details=[
+   '操作：'+(error.action||action||'unknown'),
+   '阶段：'+(error.stage||'unknown'),
+   '错误码：'+(error.dbCode||error.code),
+   '具体原因：'+(error.detail||'云端未开启调试详情。到 flyingRoom 云函数环境变量设置 FLYING_ROOM_DEBUG=1 后重新测试。')
+  ].join('\n');
+  this.lastCloudError=details;
+  const canCopy=typeof this.wx.setClipboardData==='function';
+  this.wx.showModal({
+   title:'云数据库错误详情',
+   content:details.slice(0,1000),
+   showCancel:canCopy,
+   cancelText:'关闭',
+   confirmText:canCopy?'复制报错':'知道了',
+   success:result=>{
+    if(result&&result.confirm&&canCopy)this.wx.setClipboardData({data:details});
+   }
+  });
+ }
  keyboard(kind){
   if(!this.wx.showKeyboard){this.say('请使用邀请链接加入房间');return;}
   this.keyboardMode=kind;
@@ -158,7 +180,7 @@ class FlyingChessGame{
    this.say(''); // Clear the "creating room" progress label after success.
    this.wx.setStorageSync&&this.wx.setStorageSync('flyingRoomId',this.roomId);
    this.schedulePoll(1500);
-  }catch(e){this.say(e.message);}
+  }catch(e){this.reportCloudError(e,'create');}
   finally{this.busy=false;}
  }
  async joinRoom(id){
@@ -170,7 +192,7 @@ class FlyingChessGame{
    this.say(''); // Clear the "joining room" progress label after success.
    this.wx.setStorageSync&&this.wx.setStorageSync('flyingRoomId',id);
    this.schedulePoll(1500);
-  }catch(e){this.say(e.message);}
+  }catch(e){this.reportCloudError(e,'join');}
   finally{this.busy=false;}
  }
  accept(result){
@@ -242,7 +264,7 @@ class FlyingChessGame{
    if(rejected.has(e.code)){
     this.pending=null;this.wx.removeStorageSync&&this.wx.removeStorageSync('flyingPending');
    }
-   this.say(e.message);
+   this.reportCloudError(e,request.action);
    try{await this.refresh();}catch(_){}
   }finally{this.busy=false;}
  }
