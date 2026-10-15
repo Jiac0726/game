@@ -10,7 +10,21 @@ function createClient(wxApi){
  }
  async function call(action,data={}){
   init();
-  const response=await wxApi.cloud.callFunction({name:'flyingRoom',data:Object.assign({},data,{action})});
+  let response;
+  try{
+   response=await wxApi.cloud.callFunction({name:'flyingRoom',data:Object.assign({},data,{action})});
+  }catch(e){
+   const details=String(e&&((e.errMsg||'')+' '+(e.message||''))||'');
+   if(/invalid scope|没有权限|请先开通云服务|cloud init error/i.test(details)){
+    const error=new Error('云服务未授权：请开通云开发并确认小游戏 AppID 已关联当前环境');
+    error.code='CLOUD_SCOPE';throw error;
+   }
+   if(/function.*not.*exist|FUNCTION_NOT_FOUND|函数不存在/i.test(details)){
+    const error=new Error('找不到 flyingRoom 云函数，请检查部署环境');
+    error.code='FUNCTION_NOT_FOUND';throw error;
+   }
+   throw e;
+  }
   const result=response&&response.result;
   if(!result||!result.ok){
    const error=new Error(result&&result.message||'云函数调用失败');
