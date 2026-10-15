@@ -24,7 +24,7 @@ function createRoom(id,uid,name,now,rules,bots){
  const room={
   id,host:uid,seats:[member(uid,name,0),null,null,null],status:'waiting',
   game:null,rules:normalizeRules(rules),botConfig:{count:0,difficulty:'normal'},
-  revision:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null,lastMove:null,motion:null
+  revision:0,round:0,expiresAt:now+TTL,deadline:0,seen:[],lastRoll:null,lastMove:null,motion:null
  };
  if(bots!==undefined&&bots!==null)
   configureBots(room,bots.count===undefined?0:bots.count,bots.difficulty||'normal');
@@ -104,6 +104,7 @@ function apply(original,uid,e,now,random=Math.random){
     fail('PHASE','当前不能开局');
    if(!room.seats.every(p=>p&&(e.action==='rematch'||p.ready)))
     fail('NOT_READY','需要四个座位（真人或电脑）且真人全部准备');
+   room.round=(room.round||0)+1;
    room.game=state(new Flying(4,Math.random,room.rules));
    room.status='playing';room.deadline=now+TURN_MS;room.lastRoll=null;room.lastMove=null;
    const timeline=[];runBots(room,now,random,timeline);
@@ -145,7 +146,7 @@ function view(room,uid){
    name:p.name,ready:p.ready,color:p.color,bot:!!p.bot,difficulty:p.bot?p.difficulty:null
   }:null),seat,isHost:room.host===uid,status:room.status,game:room.game,
   rules:room.rules,botConfig:room.botConfig||{count:0,difficulty:'normal'},
-  revision:room.revision,deadline:room.deadline,expiresAt:room.expiresAt,
+  revision:room.revision,round:room.round||0,deadline:room.deadline,expiresAt:room.expiresAt,
   lastRoll:room.lastRoll,lastMove:room.lastMove,motion:room.motion||null
  };
 }
