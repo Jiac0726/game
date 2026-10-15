@@ -2,6 +2,8 @@
 
 > **当前为代码版 V1.0（待真机联机验收）**。版本功能与腾讯小游戏内容审核文案、升级步骤、截图清单请看 [V1.0 发布与审核清单](docs/v1.0-release-and-review.md)。
 
+> **微信小游戏云环境已核实**：小游戏侧环境为 `cloudbase-d1gj6cm1ncb1f981a`；旧 PG 数据库仍在 `gskj-d7gp86qo88751cc06`。微信侧部署与跨环境数据库连接步骤请看 [微信云环境接入说明](docs/wechat-env-integration.md)。
+
 **V1.0 新增**：本机战绩（胜场、总场次、单机/联机数、胜率）、零充值的免费幸运星（完成对局 10 星、胜利额外 20 星）、纸张主题兑换和切换、规则帮助页、默认预留 3 个真人位置的好友房间。所有积分只用于本机外观，不支持充值、提现、交易或跨设备同步。
 
 **部署变化**：云函数房间 JSONB 状态新增 `round` 局号，用于区分重赛积分奖励，不需要新增 SQL 表或字段，但须重新部署 `flyingRoom` 最新代码。
@@ -55,7 +57,7 @@ SELECT relrowsecurity FROM pg_class WHERE oid='public.flying_rooms'::regclass;
 
 通过微信开发者工具在本仓库根目录导入为**小游戏**，并在根目录 `project.config.json` 中填你自己的微信**小游戏** AppID。打开 CloudBase 并关联该 AppID 的环境。
 
-在同一个 CloudBase 环境 `gskj-d7gp86qo88751cc06` 中，将 `cloudfunctions/flyingRoom` 目录**上传并部署（云端安装依赖）**，确认云端已安装 `pg` 和 `wx-server-sdk`。`src/config.js` 的 `envId` 已使用这一环境 ID，静态资源地址沿用原有域名。
+在小游戏绑定的 CloudBase 环境 `cloudbase-d1gj6cm1ncb1f981a` 中，将 `cloudfunctions/flyingRoom` 目录**上传并部署（云端安装依赖）**，确认云端已安装 `pg` 和 `wx-server-sdk`。`src/config.js` 的 `envId` 已切换至微信侧环境 `cloudbase-d1gj6cm1ncb1f981a`，静态资源地址沿用原有域名。
 
 ### 常见问题
 
