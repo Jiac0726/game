@@ -28,28 +28,34 @@ function heading(app,title,sub){
 }
 function footer(app){
  const c=app.ctx;
- label(c,'手绘飞行棋  ·  6 点连投  ·  欢乐起飞',187,785,12,soft,'center');
+ label(c,'你小子给我飞起来 · v1.0 休闲飞行棋',187,785,12,soft,'center');
  if(app.message){
   box(c,21,738,333,31,'#ffefdd',null,9);
   label(c,app.message.slice(0,38),187,754,11,'#9f5145','center');
  }
 }
 function home(app){
- heading(app,'好友飞行棋','独立微信小游戏 · 彩铅棋盘');
- const c=app.ctx;
- box(c,25,142,325,335,'#f1eaca');
+ heading(app,'你小子给我飞起来','手绘飞行棋 · 单机与好友联机');
+ const c=app.ctx,p=app.profile||{stars:0,played:0,wins:0};
+ label(c,'幸运星 '+p.stars+'  ·  已完成 '+p.played+' 局  ·  胜利 '+p.wins+' 局',187,126,13,soft,'center');
+ box(c,25,145,325,308,'#f1eaca');
  const img=app.asset('FG-BOARD-001');
  if(img){
-  const h=275,w=h*img.width/img.height;
-  c.drawImage(img,187-w/2,167,w,h);
+  const h=260,w=h*img.width/img.height;
+  c.drawImage(img,187-w/2,162,w,h);
  }else{
-  ['Y','B','R','G'].forEach((p,i)=>{box(c,81+(i%2)*131,192+Math.floor(i/2)*125,77,78,C[p]);label(c,'✈',119+(i%2)*131,231+Math.floor(i/2)*125,37,'#fff','center','bold');});
+  ['Y','B','R','G'].forEach((color,i)=>{
+   const x=81+(i%2)*131,y=183+Math.floor(i/2)*118;
+   box(c,x,y,77,78,C[color]);label(c,'✈',x+38,y+39,37,'#fff','center','bold');
+  });
  }
- button(app,34,500,307,57,'创建联机房间',()=>app.setup(true),'#f6d978');
- button(app,34,572,307,57,'一个人挑战 3 台 AI',()=>app.setup(false),'#a8d9bd');
- button(app,34,644,147,53,'加入好友房间',()=>app.keyboard('room'),'#d9e8f2');
- button(app,194,644,147,53,'修改昵称',()=>app.keyboard('name'),'#fde5d5');
- label(c,'我的昵称：'+app.nickname,187,714,14,soft,'center');
+ button(app,34,469,307,50,'创建联机房间',()=>app.setup(true),'#f6d978');
+ button(app,34,529,307,50,'一个人挑战 3 台 AI',()=>app.setup(false),'#a8d9bd');
+ button(app,34,589,147,45,'加入好友房间',()=>app.keyboard('room'),'#d9e8f2');
+ button(app,194,589,147,45,'修改昵称',()=>app.keyboard('name'),'#fde5d5');
+ button(app,34,646,147,46,'我的战绩',()=>app.openProfile(),'#e9dfef');
+ button(app,194,646,147,46,'幸运星商店',()=>app.openShop(),'#f6e4b6');
+ label(c,'我的昵称：'+app.nickname,187,711,14,soft,'center');
 }
 function optionButton(app,x,y,w,title,value,action){
  label(app.ctx,title,x,y-12,13,soft);
@@ -205,16 +211,79 @@ function playing(app){
   button(app,22,705,150,43,'跳过超时回合',()=>app.command('timeout'),panel,app.busy);
  if(app.pending)button(app,184,705,165,43,'重试未确认操作',()=>app.sendPending(),panel,app.busy);
 }
+function back(app){button(app,16,34,75,41,'返回',()=>{app.scene='home';app.say('');},'#f7ddcc');}
+function profileScreen(app){
+ const c=app.ctx,p=app.profile;
+ heading(app,'我的战绩','本机记录 · 不参与排行榜');
+ back(app);
+ box(c,23,141,329,194,panel);
+ label(c,'已完成对局',43,178,15,soft);label(c,p.played,329,178,25,ink,'right','bold');
+ label(c,'胜利场次',43,225,15,soft);label(c,p.wins,329,225,25,ink,'right','bold');
+ label(c,'单机 / 联机',43,272,15,soft);label(c,p.local+' / '+p.online,329,272,20,ink,'right','bold');
+ label(c,'总胜率',43,319,15,soft);
+ label(c,p.played?Math.round(p.wins/p.played*100)+'%':'暂无',329,319,20,ink,'right','bold');
+ box(c,23,361,329,141,'#fff0d6');
+ label(c,'★ 幸运星：'+p.stars,43,408,23,ink,'left','bold');
+ label(c,'参与完整对局 +10 星，获胜额外 +20 星',43,451,13,soft);
+ label(c,'仅用于更换本机纸张主题，不支持充值提现',43,477,11,soft);
+ button(app,27,538,321,54,'前往幸运星商店',()=>app.openShop(),'#f5d675');
+ button(app,27,608,321,54,'玩法规则与新手说明',()=>app.openGuide(),'#cbe7dc');
+ label(c,'清除微信本地数据或更换设备后，记录可能丢失',187,703,12,soft,'center');
+}
+function shopScreen(app){
+ const c=app.ctx,p=app.profile;
+ const {THEMES}=require('./player-profile');
+ heading(app,'幸运星商店','免费对局获取 · 无内购与提现');
+ back(app);
+ box(c,24,132,327,63,'#fff0d6');
+ label(c,'★ 当前幸运星 '+p.stars,187,164,22,ink,'center','bold');
+ THEMES.forEach((item,i)=>{
+  const y=216+i*116,owned=p.owned.includes(item.id),active=p.theme===item.id;
+  box(c,25,y,327,101,panel);
+  box(c,40,y+18,60,60,item.paper,soft,10);
+  label(c,item.label,112,y+35,17,ink,'left','bold');
+  label(c,item.cost===0?'初始主题':owned?'已拥有':'兑换需要 '+item.cost+' 星',112,y+70,12,soft);
+  button(app,240,y+29,95,43,active?'使用中':owned?'使用':'兑换',
+   ()=>app.buyTheme(item.id),active?'#e4e9e4':'#f5d675',active);
+ });
+ label(c,'主题仅更换纸张背景；余额只保存在当前设备',187,718,12,soft,'center');
+}
+function guideScreen(app){
+ const c=app.ctx;
+ heading(app,'玩法规则','起飞、跳跃、飞越、撞机与胜负');
+ back(app);
+ const lines=[
+  ['01 选择模式','单机挑战 3 名电脑，或创建四座位好友房间'],
+  ['02 回合掷骰','轮流投骰并点击可移动的棋子'],
+  ['03 起飞条件','默认掷出 6 点；也可设置 5/6 点或偶数起飞'],
+  ['04 六点连投','投出 6 点可额外行动，第三次按房规处理'],
+  ['05 跳跃与飞行','符合条件的同色格跳 4 格，专属航线飞越'],
+  ['06 碰撞与终点','撞到对手使其回机场；超过终点可反弹'],
+  ['07 游戏获胜','最先将己方 4 枚飞机全部送达终点获胜'],
+  ['08 联机说明','玩家准备后房主开局，掉线可通过房间码返回']
+ ];
+ lines.forEach(([head,detail],i)=>{
+  const y=136+i*69;
+  box(c,23,y,329,61,i%2===0?'#fffdf5':'#f3f1e8',null,9);
+  label(c,head,37,y+17,15,ink,'left','bold');
+  label(c,detail,37,y+43,12,soft);
+ });
+ button(app,26,700,323,43,'返回首页',()=>{app.scene='home';app.say('');},'#cbe7dc');
+}
 function draw(app){
  const c=app.ctx;
  if(!c)return;
  const dpr=app.pixelRatio||1;
  c.setTransform(dpr,0,0,dpr,0,0);
- c.fillStyle=paper;c.fillRect(0,0,app.canvas.width/dpr,app.canvas.height/dpr);
+ const selectedTheme=require('./player-profile').theme(app.profile||{theme:'classic'});
+ c.fillStyle=selectedTheme.paper;c.fillRect(0,0,app.canvas.width/dpr,app.canvas.height/dpr);
  c.setTransform(dpr*app.scale,0,0,dpr*app.scale,dpr*app.dx,dpr*app.dy);
- c.fillStyle=paper;c.fillRect(0,0,375,812);
+ c.fillStyle=selectedTheme.paper;c.fillRect(0,0,375,812);
  app.buttons=[];app.tokenTargets=[];
  if(app.scene==='home')home(app);
+ else if(app.scene==='profile')profileScreen(app);
+ else if(app.scene==='shop')shopScreen(app);
+ else if(app.scene==='guide')guideScreen(app);
  else if(app.scene==='setup')setup(app);
  else if(app.scene==='room'&&app.room&&app.room.status==='waiting')waiting(app);
  else if(app.scene==='local'||app.scene==='room'&&app.room&&app.room.game)playing(app);
