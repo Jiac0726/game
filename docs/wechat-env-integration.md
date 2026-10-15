@@ -1,66 +1,45 @@
-# 微信小游戏云环境接入（2026-10-15）
+# 微信云开发方案 B · 同环境云函数 + 文档数据库（2026-10-15）
 
-## 两个环境的用途
+用户已确认微信小游戏环境：`cloudbase-d1gj6cm1ncb1f981a`。**不再尝试让小游戏绑定 `gskj`，也不再要求跨环境 PostgreSQL TCP 连接**。旧 `gskj-d7gp86qo88751cc06` 内的 PostgreSQL 和素材保持原状，素材域名 `www.gskj.cloud` 继续使用。
 
-| 资源 | 环境 |
-| --- | --- |
-| 微信小游戏直接调用的云函数 `flyingRoom` | `cloudbase-d1gj6cm1ncb1f981a`（在小游戏云开发面板可见） |
-| 旧版 `flyingRoom` 云函数与 `public.flying_rooms` PostgreSQL | `gskj-d7gp86qo88751cc06` |
-| 手绘图片 CDN | `https://www.gskj.cloud/game-assets/v1` |
+## A. 先在微信侧新建集合（必须人工执行）
 
-本分支 `src/config.js` 的 `envId` 已改为微信环境。**环境之间相互隔离，旧环境的云函数不会被小游戏自动调用，也不能把 PostgreSQL 表直接视为新环境的表。**
+微信开发者工具 → 选择**真实小游戏 AppID** →「云开发」→ 环境 `cloudbase-d1gj6cm1ncb1f981a` →「数据库」→「添加集合」：
 
-## 第一步：先证明小游戏能调用新环境
+- 名称：`flying_rooms`
+- 安全权限：**仅管理员可读写**（自定义安全规则 `{"read":false,"write":false}`），禁止客户端直接改房间状态。服务器云函数拥有管理权限。
+- 无需增加额外字段、导入 JSON、创建 PostgreSQL 表，也不需要复制旧环境数据库密码。
+- 文档会由新后端首次创建房间时写入，使用 `_id=32 位房间码`，其他字段 `state`、`expiresAt`、`updatedAt`。
 
-保证 `project.config.json` 是该小游戏的真实 AppID，而不是 `touristappid`。在微信开发者工具小游戏 Console 中：
+若数据库菜单不存在或提示“未开通”，先开通对应环境的**文档型云数据库**。本方案无法在只有 PostgreSQL、没有文档数据库的环境中运行。
 
-```javascript
-wx.cloud.init({env:'cloudbase-d1gj6cm1ncb1f981a'});
-wx.cloud.callFunction({
-  name:'flyingRoom',
-  data:{action:'get',roomId:'invalid'}
-}).then(r=>console.log('CALL_OK',r.result))
-  .catch(e=>console.error('CALL_FAIL',e.errCode,e.errMsg,e));
-```
+## B. 上传新 flyingRoom
 
-- 返回 `function not found`、`函数不存在`：新环境授权可能已过关，但正式函数尚未部署。
-- 返回 `ROOM / 房间码无效`：新环境的正式函数已正常收到调用。
-- 返回 `AUTH`：函数已运行，但尚未正确获取微信用户身份。
-- 返回 `invalid scope`：仍需要确认小游戏真实 AppID、账号及云服务权限；**先不要迁移数据库**。
-- 其他错误：以完整错误码和新环境函数日志为准。
+源码位置 `cloudfunctions/flyingRoom`。本分支已把后端改为 `wx-server-sdk` 的 `cloud.database({throwOnNotFound:false})`、`db.runTransaction`，`package.json` 删除了 `pg`。
 
-## 第二步：部署函数到微信环境
+右键 `flyingRoom` →「上传并部署：云端安装依赖」。确保选择的是 `cloudbase-d1gj6cm1ncb1f981a`，不是旧 `gskj`。CloudBase 普通事件函数（Event），入口 `index.main`。
 
-保持 `flyingRoom` 作为 **普通 Event 云函数**，入口 `index.main`，Node.js 20.x，并启用云端安装依赖（`pg`, `wx-server-sdk`）。使用本项目 `cloudfunctions/flyingRoom` 的最新代码。
+部署失败时可进入 GitHub Actions 的 `Package flyingRoom for SCF` 下载已校验的 `flyingRoom.zip`：下载的 Artifact 可能还有一层 ZIP，上传前只解开外层一次。
 
-在 PowerShell（云开发 CLI 已登录到管理该微信云环境的账号的前提下）：
+**验证云端版本**：从小游戏 Console 请求 `flyingRoom` 的 `get`，传 `roomId:'invalid'`。新版应返回 `ROOM / 房间码无效`。若还是“云函数未配置 PostgreSQL”，表明**新函数尚未更新成功**。旧 PG 环境的函数无需删除，历史数据无需迁移。
 
-```powershell
-tcb env list -r ap-shanghai
-tcb fn list --env-id cloudbase-d1gj6cm1ncb1f981a --region ap-shanghai
-```
+## C. 建房链路
 
-**先确认新环境出现在列表中且有权限，才部署。** `cloudbase-d1gj6cm1ncb1f981a` 的地域以控制台为准；如果不是上海，命令中的 `ap-shanghai` 应据实修改。
+1. 微信开发者工具以真实小游戏 AppID 编译 V1.0，`src/config.js` 的 `envId` 为 `cloudbase-d1gj6cm1ncb1f981a`。
+2. 首页创建联机房间；默认只占房主一个座位，其余三个预留给真人好友；可在开局前调整 AI 数量。
+3. 新环境数据库 `flying_rooms` 出现房间文档；状态由服务端事务保存。
+4. 邀请另一台微信设备进入同一个房间，验证准备、掷骰、棋子移动；再测试四个真人同时加入。
 
-```powershell
-$src = "C:\Users\费克玛尼\flying-chess-minigame\cloudfunctions\flyingRoom"
-tcb fn deploy flyingRoom --dir "$src" --env-id cloudbase-d1gj6cm1ncb1f981a --region ap-shanghai --install-dependency true
-```
+若报 `DATABASE`：查看**新环境** `flyingRoom` 日志，重点检查 `flying_rooms` 集合是否已存在、云开发数据库是否开通、事务 API 是否支持及函数权限。如果报告 `invalid scope`：检查真实小游戏 AppID 和云开发授权；不要通过关闭数据库权限来绕过授权问题。
 
-如果 CLI 无权限管理微信侧新环境，改用微信开发者工具对应环境的云函数上传/部署入口；不必删除原 gskj 环境里的 `flyingRoom`。上传 ZIP 时确保根目录直接包含 `index.js`、`service.js`、`package.json`、`lib/`，不要上传 GitHub artifact 外层 ZIP。
+## D. 数据安全与一致性
 
-## 第三步：复用原 PostgreSQL，仅在可达条件下
+- 只允许云函数访问房间完整文档；客户端不得直接读写 `state` 中的真人 OPENID 或自定义骰子结果。
+- 所有加入/准备/房主改 AI/开局/掷骰/移动/超时/重赛统一由服务端业务规则验证，并在单文档 `runTransaction` 中进行读改写。
+- 每次玩家操作带 `revision` 与 `requestId`；并发冲突靠事务重试与 `STALE` 响应，确保房间不会在并发写中丢更新。
+- 无需 `PGHOST`、`PGPORT`、`PGDATABASE`、`PGUSER`、`PGPASSWORD`、`PGSSLMODE`；禁止把数据库密码提交到 GitHub。
+- 旧 PG `public.flying_rooms` 是**完全独立的历史数据**，此方案不会读取、覆盖、删除或自动迁移旧房间。
 
-新环境函数需要独立配置 `PGHOST`、`PGPORT`、`PGDATABASE`、`PGUSER`、`PGPASSWORD`、`PGSSLMODE`；这些变量**不会从旧环境自动继承**。原环境 SQL 表无需重新建。
+## E. 发布约束
 
-跨环境数据库访问**不保证通**：确认 PG 主机支持新环境可达的网络入口（同地域互联 VPC，或严格限制的公网 TLS 连接），数据库账号通过权限与 RLS 检查。切勿直接把 `PGPASSWORD` 或 CloudBase 管理 API Key 放入小游戏客户端、控制台截图、仓库。不要为调通服务无条件将数据库公网开放。
-
-## 第四步：验收
-
-1. 微信小游戏点击“创建联机房间”，新环境 `flyingRoom` 日志出现调用。
-2. PG SQL 编辑器执行 `SELECT room_id, updated_at FROM public.flying_rooms ORDER BY updated_at DESC LIMIT 5;`，观察新纪录。
-3. 用两台不同微信账户加入一个房间，再验证四人实际联机、断线重连、胜负统计。
-
-如果第三步跨环境 PostgreSQL 无法连接，先保留全部数据库和资产，改为**新微信环境自带文档数据库 + 服务器事务**方案；这需要替换当前 `pg` 持久化层，而不是简单修改 `PGHOST`。
-
-当前项目不应被标记为“真机联机上线成功”，直到微信调用、数据库写入、两人和四人测试均通过。
+代码测试为本地模拟云数据库，不等于线上压力测试。至少完成：两台不同微信账号的加入/准备/轮流操作、四台抢座、断线重连、重赛后胜负计数、真实云数据库文档检查。需要时可再安排过期房间清理任务，当前仅业务层按时间拒绝已过期房间。
