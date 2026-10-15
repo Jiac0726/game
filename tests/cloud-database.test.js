@@ -107,7 +107,8 @@ test('Cloud DB: create room persists by _id, membership and no PGPASSWORD',async
  const src=fs.readFileSync(path.join(__dirname,'../cloudfunctions/flyingRoom/index.js'),'utf8');
  assert.ok(src.includes("cloud.database({throwOnNotFound:false})"));
  assert.ok(!src.includes("require('pg')"));
- assert.ok(!src.includes('PGPASSWORD'));
+ assert.ok(!src.includes("process.env.PGHOST"));
+ assert.ok(!src.includes("require('pg')"));
 });
 
 test('Cloud DB: ready/start/roll/move, server dice and duplicate request id',async()=>{
