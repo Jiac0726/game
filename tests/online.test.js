@@ -45,7 +45,7 @@ test('deployed handler serializes concurrent joins and rolls with transactional 
  const collection=()=>({doc:id=>({get:async()=>({data:docs.get(id)}),set:async({data})=>{docs.set(id,JSON.parse(JSON.stringify(data)));}})});
  const db={collection,runTransaction:fn=>{const p=chain.then(async()=>({result:await fn({collection})}));chain=p.catch(()=>{});return p;}};
  const sdk={init(){},DYNAMIC_CURRENT_ENV:'test',database:()=>db,getWXContext:()=>({OPENID:identity})};let identity='a';
- const folder=path.resolve('online/cloudfunctions/flyingRoom'),exports={};
+ const folder=path.resolve('cloudfunctions/flyingRoom'),exports={};
  vm.runInNewContext(fs.readFileSync(folder+'/index.js','utf8'),{exports,require:n=>n==='wx-server-sdk'?sdk:n==='./service'?require(folder+'/service'):require(n),console});
  const handler=exports.main,make=await handler({action:'create'}),id=make.room.id;
  const joinPromises=[];for(const uid of ['b','c','d','e']){identity=uid;joinPromises.push(handler({action:'join',roomId:id}));}
@@ -57,9 +57,9 @@ test('deployed handler serializes concurrent joins and rolls with transactional 
  const retry=await handler(one);assert.equal(retry.ok,true);assert.equal(retry.room.game.die,results[0].room.game.die);
 });
 test('client/server share same rules and paths; native invitation targets join page',()=>{
- for(const f of ['flying-model.js','flying-paths.js'])assert.equal(fs.readFileSync('online/miniprogram/lib/'+f,'utf8'),fs.readFileSync('online/cloudfunctions/flyingRoom/lib/'+f,'utf8'));
- assert.match(fs.readFileSync('online/miniprogram/pages/room/room.wxml','utf8'),/open-type="share"/);
- assert.match(fs.readFileSync('online/miniprogram/pages/room/room.js','utf8'),/\/pages\/room\/room\?roomId=/);
+ for(const f of ['flying-model.js','flying-paths.js'])assert.equal(fs.readFileSync('miniprogram/lib/'+f,'utf8'),fs.readFileSync('cloudfunctions/flyingRoom/lib/'+f,'utf8'));
+ assert.match(fs.readFileSync('miniprogram/pages/room/room.wxml','utf8'),/open-type="share"/);
+ assert.match(fs.readFileSync('miniprogram/pages/room/room.js','utf8'),/\/pages\/room\/room\?roomId=/);
 });
 test('four mini-program clients join shared room, prepare, roll, move and recover an uncertain request',async()=>{
  let room=createRoom(ID,'a','房主',Date.now());const clients=[];let failed=false;
@@ -71,7 +71,7 @@ test('four mini-program clients join shared room, prepare, roll, move and recove
    if(uid==='a'&&action==='roll'&&!failed){failed=true;throw new Error('network response lost');}
    return {ok:true,room:view(room,uid),serverNow:Date.now()};
   }};
-  const dir=path.resolve('online/miniprogram/pages/room');
+  const dir=path.resolve('miniprogram/pages/room');
   vm.runInNewContext(fs.readFileSync(dir+'/room.js','utf8'),{Page:p=>{definition=p;},require:n=>n==='../../lib/api'?api:require(path.resolve(dir,n)),wx,console,setTimeout:()=>1,clearTimeout(){},Date,Math});
   const client=Object.assign({},definition,{data:JSON.parse(JSON.stringify(definition.data)),setData(values){Object.assign(this.data,values);}});
   client.roomId=ID;client.images={};client.offset=0;client.hidden=false;
