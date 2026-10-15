@@ -55,6 +55,8 @@ test('cloud multiplayer uses same authoritative room service and native game sha
  try{
   app.botCount=3; // The host explicitly chooses AI for this 1v3 test.
   await app.createRoom();
+  assert.equal(app.message,'','successful room creation must clear loading text');
+  assert.equal(app.busy,false,'successful room creation must unlock UI');
   assert.equal(app.room.status,'waiting');
   assert.equal(app.room.seats.filter(Boolean).length,4);
   assert.equal(app.room.seats[0].ready,false);
