@@ -125,3 +125,37 @@ test('CloudDB production error dialog suggests turning on temporary diagnostics'
  assert.match(dialog.content,/FLYING_ROOM_DEBUG=1/);
  assert.ok(!dialog.content.includes('undefined'));
 });
+
+test('mini-game initializes CloudBase on boot so Console can call functions',()=>{
+ const {app}=setup();
+ let inits=0;
+ app.wx.cloud={init(){inits++;},callFunction(){}};
+ app.api.init=()=>{inits++;};
+ // Start ticker is not relevant to cloud initialization and would loop.
+ app.startTicker=()=>{};
+ app.boot();
+ assert.equal(inits,1);
+});
+test('clipboard privacy denial logs diagnostic fallback instead of throwing',()=>{
+ const {app}=setup();
+ const oldWarn=console.warn,oldError=console.error;
+ let dialog,copyOptions,warnings=[];
+ try{
+  console.warn=(...args)=>warnings.push(args);
+  console.error=()=>{};
+  app.wx.showModal=opts=>{dialog=opts;};
+  app.wx.setClipboardData=opts=>{copyOptions=opts;};
+  app.reportCloudError(Object.assign(new Error('事务异常'),{
+   code:'DATABASE',stage:'transaction',action:'ready',
+   dbCode:'-502001',detail:'Cannot create field'
+  }),'ready');
+  dialog.success({confirm:true});
+  assert.equal(typeof copyOptions.fail,'function');
+  copyOptions.fail({errMsg:'setClipboardData privacy errno 1026'});
+  assert.equal(dialog.title,'复制未成功');
+  assert.match(dialog.content,/FLYING_ERROR/);
+  assert.ok(warnings.length);
+ }finally{
+  console.warn=oldWarn;console.error=oldError;
+ }
+});
