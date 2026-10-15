@@ -53,6 +53,7 @@ test('cloud multiplayer uses same authoritative room service and native game sha
   }
  };
  try{
+  app.botCount=3; // The host explicitly chooses AI for this 1v3 test.
   await app.createRoom();
   assert.equal(app.room.status,'waiting');
   assert.equal(app.room.seats.filter(Boolean).length,4);
@@ -82,4 +83,13 @@ test('mini-game controller opens rooms directly from shared launch query',()=>{
  assert.equal(id,roomId);
  app.openShare({roomId:'../../invalid'});
  assert.equal(id,roomId);
+});
+
+test('new multiplayer lobby defaults to three open human invitation seats',()=>{
+ const {app}=setup();
+ assert.equal(app.botCount,0);
+ const room=createRoom('f'.repeat(32),'host','房主',Date.now(),app.rules,
+  {count:app.botCount,difficulty:app.difficulty});
+ assert.equal(room.seats.filter(Boolean).length,1);
+ assert.equal(room.seats.filter(s=>s===null).length,3);
 });
