@@ -48,9 +48,13 @@ function memoryCloudDB(){
          throw Object.assign(Error(
           "Cannot create field 'colors' in element {game: null}"),{code:'-502001'});
         },
-        async set({data}){
+        async set(data){
+         // Tencent's server-side transaction.set takes the replacement doc
+         // directly, NOT {data: replacement}; ordinary collection.add differs.
          ops.push('tx.set');
          assert.ok(!Object.hasOwn(data,'_id'),'doc(id).set leaves _id immutable');
+         assert.ok(!Object.hasOwn(data,'data'),'transaction set must not wrap data');
+         assert.ok(Object.hasOwn(data,'state'),'transaction set requires state');
          assert.ok(docs.has(id),'transactions must never invent a room');
          changes.set(id,{_id:id,...structuredClone(data)});
          return {stats:{updated:1,created:0}};
@@ -153,6 +157,34 @@ test('Cloud DB regression -502001: first start replaces null game atomically',as
  assert.equal(memory.docs.get(room.id).state.game.colors[0],'R');
  assert.equal(memory.docs.get(room.id).state.revision,2);
  assert.equal(memory.ops.filter(x=>x==='tx.set').length,2);
+});
+
+test('Cloud DB: authenticated read-only deployment health reports the backend version',async()=>{
+ const {memory,uid}=make();
+ const result=await uid('host')({action:'health'});
+ assert.equal(result.ok,true);
+ assert.equal(result.version,'wxdb-txset-20261015-2');
+ assert.equal(result.store,'wechat-cloud-database');
+ assert.equal(memory.docs.size,0);
+ assert.equal(memory.ops.length,0);
+});
+
+test('Cloud DB: bad previous set wrapping recovers existing room on mutation',async()=>{
+ const {memory,uid}=make(),host=uid('host');
+ let room=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
+ const old=memory.docs.get(room.id);
+ memory.docs.set(room.id,{_id:room.id,data:{
+  state:old.state,expiresAt:old.expiresAt,updatedAt:old.updatedAt
+ }});
+ const read=await host({action:'get',roomId:room.id});
+ assert.equal(read.ok,true);
+ assert.equal(read.room.status,'waiting');
+ room=(await host(request(room,'ready','ready0001'))).room;
+ const doc=memory.docs.get(room.id);
+ assert.ok(doc.state);
+ assert.equal(doc.state.seats[0].ready,true);
+ assert.equal(Object.hasOwn(doc,'data'),false);
+ assert.equal(doc._id,room.id);
 });
 
 test('Cloud DB: simultaneous joins with only 3 seats, no overbooking',async()=>{
