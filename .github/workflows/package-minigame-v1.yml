@@ -1,0 +1,48 @@
+name: Package flying chess v1 source
+on:
+  push:
+    branches:
+      - standalone/flying-chess-minigame
+    paths:
+      - 'game.js'
+      - 'game.json'
+      - 'project.config.json'
+      - 'src/**'
+      - 'cloudfunctions/flyingRoom/**'
+      - 'sql/**'
+      - 'docs/**'
+      - 'README.md'
+      - '.github/workflows/package-minigame-v1.yml'
+  workflow_dispatch:
+jobs:
+  source:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Validate playable source
+        run: |
+          test -f game.js
+          test -f game.json
+          test -f src/game-app.js
+          test -f src/player-profile.js
+          node --test tests/*.test.js
+      - name: Assemble complete source archive
+        run: |
+          zip -q -r flying-chess-v1.0-source.zip game.js game.json project.config.json src cloudfunctions sql README.md docs
+          unzip -t flying-chess-v1.0-source.zip
+          unzip -Z -1 flying-chess-v1.0-source.zip > /tmp/v1-files.txt
+          grep -Fxq 'game.js' /tmp/v1-files.txt
+          grep -Fxq 'src/player-profile.js' /tmp/v1-files.txt
+          grep -Fxq 'cloudfunctions/flyingRoom/index.js' /tmp/v1-files.txt
+          grep -Fxq 'docs/v1.0-release-and-review.md' /tmp/v1-files.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flying-chess-v1.0-source
+          path: flying-chess-v1.0-source.zip
+          retention-days: 30
+          if-no-files-found: error
