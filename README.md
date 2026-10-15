@@ -1,4 +1,10 @@
-# 手绘飞行棋 · 独立微信小游戏（PostgreSQL 联机版）
+# 你小子给我飞起来 · V1.0 独立微信小游戏
+
+> **当前为代码版 V1.0（待真机联机验收）**。版本功能与腾讯小游戏内容审核文案、升级步骤、截图清单请看 [V1.0 发布与审核清单](docs/v1.0-release-and-review.md)。
+
+**V1.0 新增**：本机战绩（胜场、总场次、单机/联机数、胜率）、零充值的免费幸运星（完成对局 10 星、胜利额外 20 星）、纸张主题兑换和切换、规则帮助页、默认预留 3 个真人位置的好友房间。所有积分只用于本机外观，不支持充值、提现、交易或跨设备同步。
+
+**部署变化**：云函数房间 JSONB 状态新增 `round` 局号，用于区分重赛积分奖励，不需要新增 SQL 表或字段，但须重新部署 `flyingRoom` 最新代码。
 
 这是独立的 **微信小游戏**（`compileType: game`），不是 WXML / WXSS 微信小程序。入口 `game.js`，大厅、建房、邀请、棋盘、掷骰、棋子和结算都是 Canvas 绘制。支持单机 1 人 + 3 AI 及四人联机（1–4 真人，其余可用 AI）。
 
@@ -10,6 +16,10 @@
 - 数据持久化：**PostgreSQL**，非 NoSQL，单表 `public.flying_rooms` 保存 JSONB 房间状态
 - 并发安全：每个写操作 `BEGIN` → `SELECT ... FOR UPDATE` → 验证修订号/权限 → `UPDATE` → `COMMIT`
 - 图片：`https://www.gskj.cloud/game-assets/v1/assets/FLYING/`，不打包 PNG
+
+## 微信云服务开通问题
+
+如果微信开发者工具报 `cloud init error: invalid scope 没有权限，请先开通云服务`，请求尚未正常进入云函数，**不要重新改 PostgreSQL 密码或 SQL 表**。优先核对小游戏真实 AppID、微信侧云服务是否开通以及小游戏账号是否关联/授权 `gskj-d7gp86qo88751cc06` 环境。仓库的 `project.config.json` 仍使用 `touristappid` 作为占位，不应直接用于真机联机。
 
 ## ① 数据库：执行建表脚本
 
