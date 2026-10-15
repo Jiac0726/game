@@ -42,12 +42,18 @@ function memoryCloudDB(){
          return {data:changes.has(id)?structuredClone(changes.get(id)):
           docs.has(id)?structuredClone(docs.get(id)):null};
         },
-        async update({data}){
-         ops.push('tx.update');
-         if(!docs.has(id))return {stats:{updated:0}};
-         const d=changes.get(id)||structuredClone(docs.get(id));
-         changes.set(id,{...d,...structuredClone(data)});
-         return {stats:{updated:1}};
+        async update(){
+         // Simulate the real CloudDB failure when nested state.game is null:
+         // update() flattens nested paths (state.game.colors) and fails -502001.
+         throw Object.assign(Error(
+          "Cannot create field 'colors' in element {game: null}"),{code:'-502001'});
+        },
+        async set({data}){
+         ops.push('tx.set');
+         assert.equal(data._id,id,'document replacement keeps the room ID');
+         assert.ok(docs.has(id),'transactions must never invent a room');
+         changes.set(id,structuredClone(data));
+         return {stats:{updated:1,created:0}};
         }
        };
       }};
@@ -121,13 +127,32 @@ test('Cloud DB: ready/start/roll/move, server dice and duplicate request id',asy
  assert.equal(again.room.revision,afterRoll.revision);
  assert.equal(memory.docs.get(room.id).state.revision,afterRoll.revision);
  assert.ok(memory.ops.includes('tx.get'));
- assert.ok(memory.ops.includes('tx.update'));
+ assert.ok(memory.ops.includes('tx.set'));
  room=afterRoll;
  result=await run(request(room,'move','move0001',{piece:0}));
  assert.equal(result.ok,true);
  assert.ok(result.room.revision>room.revision);
  const stale=await run(request(room,'move','different',{piece:0}));
  assert.equal(stale.code,'STALE');
+});
+
+
+test('Cloud DB regression -502001: first start replaces null game atomically',async()=>{
+ const {memory,uid}=make(),host=uid('host');
+ let room=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
+ assert.equal(memory.docs.get(room.id).state.game,null);
+ room=(await host(request(room,'ready','ready0001'))).room;
+ assert.equal(room.game,null);
+ const started=await host(request(room,'start','start0001'));
+ assert.equal(started.ok,true);
+ assert.equal(started.room.status,'playing');
+ assert.equal(started.room.round,1);
+ assert.ok(Array.isArray(started.room.game.colors));
+ assert.equal(started.room.game.colors.length,4);
+ assert.equal(memory.docs.get(room.id)._id,room.id);
+ assert.equal(memory.docs.get(room.id).state.game.colors[0],'R');
+ assert.equal(memory.docs.get(room.id).state.revision,2);
+ assert.equal(memory.ops.filter(x=>x==='tx.set').length,2);
 });
 
 test('Cloud DB: simultaneous joins with only 3 seats, no overbooking',async()=>{
@@ -161,9 +186,9 @@ test('Cloud DB: simultaneous ready commands reject stale revision, no overwrites
 test('Cloud DB: invalid operations have no write and timeout respects server time',async()=>{
  const {memory,uid,tick}=make(),host=uid('host');
  let room=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
- const before=memory.ops.filter(x=>x==='tx.update').length;
+ const before=memory.ops.filter(x=>x==='tx.set').length;
  assert.equal((await host(request(room,'move','bad00001',{piece:0}))).code,'PHASE');
- assert.equal(memory.ops.filter(x=>x==='tx.update').length,before);
+ assert.equal(memory.ops.filter(x=>x==='tx.set').length,before);
  room=(await host(request(room,'ready','ready0001'))).room;
  room=(await host(request(room,'start','start0001'))).room;
  assert.equal((await host(request(room,'timeout','timeout0'))).code,'TOO_EARLY');
