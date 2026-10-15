@@ -3,6 +3,7 @@ const {Flying,DEFAULT_RULES}=require('./flying-model');
 const {chooseMove}=require('./flying-ai');
 const {buildFrames}=require('./flying-motion');
 const {createClient}=require('./api');
+const profileLib=require('./player-profile');
 const view=require('./view');
 const COLORS={R:'#f39c8c',Y:'#f6d767',B:'#7cc6e8',G:'#99d8ac'};
 class FlyingChessGame{
@@ -10,6 +11,7 @@ class FlyingChessGame{
   this.wx=wxApi;
   this.api=createClient(wxApi);
   this.scene='home';this.rules=Object.assign({},DEFAULT_RULES);
+  this.profile=profileLib.load(wxApi);this.sessionSeq=0;this.localMatchId='';
   this.botCount=3;this.difficulty='normal';this.nickname='玩家';
   this.room=null;this.roomId='';this.local=null;
   this.hidden=false;this.busy=false;this.message='';
@@ -120,10 +122,32 @@ class FlyingChessGame{
   }
  }
  setup(online){this.onlineSetup=online;this.scene='setup';this.say('');}
+ openProfile(){this.scene='profile';this.say('');}
+ openShop(){this.scene='shop';this.say('');}
+ openGuide(){this.scene='guide';this.say('');}
+ buyTheme(themeId){
+  try{
+   const result=profileLib.buyOrEquip(this.wx,this.profile,themeId);
+   this.profile=result.profile;this.say(result.message);
+  }catch(e){this.say('主题保存失败：'+e.message);}
+ }
+ rewardMatch(id,won,online){
+  try{
+   const r=profileLib.reward(this.wx,this.profile,id,won,online);
+   this.profile=r.profile;
+   if(!r.duplicate)this.message='对局完成，获得 '+r.earned+' 颗幸运星';
+  }catch(e){this.message='本机战绩保存失败';}
+ }
+ rewardLocalIfDone(){
+  if(this.scene==='local'&&this.local&&this.local.phase==='done'&&this.localMatchId)
+   this.rewardMatch(this.localMatchId,this.local.winner===0,false);
+ }
  localStart(){
   this.local=new Flying(4,Math.random,this.rules);
+  this.localMatchId='local:'+Date.now().toString(36)+':'+(++this.sessionSeq);
   this.scene='local';this.room=null;this.roomId='';
-  this.lastMotionId='';this.botFrames=[];this.say('单机挑战：你是红方');
+  this.lastMotionId='';this.botFrames=[];this.rollEnd=0;this.localAiAt=0;
+  this.say('单机挑战：你是红方');
  }
  async createRoom(){
   if(this.busy)return;this.busy=true;
@@ -160,7 +184,11 @@ class FlyingChessGame{
    this.botFrames=buildFrames(next.motion,next.game.colors);this.botFrameIndex=0;
    this.botFrameUntil=Date.now()+(this.botFrames[0]&&this.botFrames[0].duration||0);
   }
-  if(next.status==='done')this.botFrames=[];
+  if(next.status==='done'){
+   this.botFrames=[];
+   if(next.game&&Number.isInteger(next.game.winner)&&next.seat>=0)
+    this.rewardMatch('online:'+next.id+':'+(next.round||1),next.game.winner===next.seat,true);
+  }
   this.render();
  }
  async refresh(){
@@ -235,7 +263,7 @@ class FlyingChessGame{
   const g=this.game();
   const sim=Object.assign(new Flying(4),g);
   if(!sim.legal().includes(piece))return;
-  if(this.scene==='local'){this.local.move(piece);this.render();}
+  if(this.scene==='local'){this.local.move(piece);this.rewardLocalIfDone();this.render();}
   else this.command('move',{piece});
  }
  roll(){
@@ -277,6 +305,7 @@ class FlyingChessGame{
     }
    }
   }else this.localAiAt=0;
+  this.rewardLocalIfDone();
  }
 }
 module.exports={FlyingChessGame,COLORS};
