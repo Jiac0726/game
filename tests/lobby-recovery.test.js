@@ -43,7 +43,7 @@ test('host with 3 bots is told to reduce AI before inviting other players',async
  assert.ok(labels.some(x=>String(x[0]).includes('座位已满')));
  await invite.action();
  assert.equal(shares.length,0);
- assert.match(app.message,/减少 AI/);
+ assert.match(app.message,/AI 数量调到 0/);
 });
 test('host with spare seats can invite and unknown mutation can be retried',async()=>{
  const {app,shares}=setup(0);
