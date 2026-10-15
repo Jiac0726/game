@@ -1,83 +1,88 @@
-# 你小子给我飞起来 · V1.0 独立微信小游戏
+# 你小子给我飞起来 · V1.0 微信小游戏
 
-> **当前为代码版 V1.0（待真机联机验收）**。版本功能与腾讯小游戏内容审核文案、升级步骤、截图清单请看 [V1.0 发布与审核清单](docs/v1.0-release-and-review.md)。
+这是**独立微信小游戏**（`project.config.json`: `compileType: game`），不是 WXML/WXSS 普通小程序。采用 Canvas 渲染；支持单机一人对抗三名 AI、四座位好友联机、规则自定义、本机战绩、无充值的幸运星及纸张主题兑换。
 
-> **微信小游戏云环境已核实**：小游戏侧环境为 `cloudbase-d1gj6cm1ncb1f981a`；旧 PG 数据库仍在 `gskj-d7gp86qo88751cc06`。微信侧部署与跨环境数据库连接步骤请看 [微信云环境接入说明](docs/wechat-env-integration.md)。
+**当前状态：V1.0 源码与离线自动测试完成；微信侧文档数据库需要建集合并更新部署 `flyingRoom`；真机四人联机尚未验收。**
 
-**V1.0 新增**：本机战绩（胜场、总场次、单机/联机数、胜率）、零充值的免费幸运星（完成对局 10 星、胜利额外 20 星）、纸张主题兑换和切换、规则帮助页、默认预留 3 个真人位置的好友房间。所有积分只用于本机外观，不支持充值、提现、交易或跨设备同步。
+## 统一云环境架构（方案 B）
 
-**部署变化**：云函数房间 JSONB 状态新增 `round` 局号，用于区分重赛积分奖励，不需要新增 SQL 表或字段，但须重新部署 `flyingRoom` 最新代码。
+| 资源 | 位置 |
+| --- | --- |
+| 微信小游戏 `wx.cloud` 调用环境 | `cloudbase-d1gj6cm1ncb1f981a` |
+| 联机云函数 `flyingRoom` | 同一个 `cloudbase-d1gj6cm1ncb1f981a` |
+| 房间数据（文档数据库集合 `flying_rooms`） | 同一个 `cloudbase-d1gj6cm1ncb1f981a` |
+| 手绘棋盘与飞机素材 | `https://www.gskj.cloud/game-assets/v1` |
+| 旧 PostgreSQL | `gskj-d7gp86qo88751cc06`，**历史数据保留，但联机不再依赖** |
 
-这是独立的 **微信小游戏**（`compileType: game`），不是 WXML / WXSS 微信小程序。入口 `game.js`，大厅、建房、邀请、棋盘、掷骰、棋子和结算都是 Canvas 绘制。支持单机 1 人 + 3 AI 及四人联机（1–4 真人，其余可用 AI）。
+重要：只把 `src/config.js` 的 `envId` 指向**小游戏实际已开通的云环境**，不能把旧 `gskj` 环境或图片域名填到 `envId` 中。根目录 `project.config.json` 的 `touristappid` 是占位值，请使用自己的真实**微信小游戏** AppID。
 
-## 技术架构
+## 一、创建微信云数据库集合
 
-- 微信小游戏：`src/game-app.js` + `src/view.js`（Canvas）
-- 游戏规则：`src/flying-model.js` 和 `src/flying-ai.js`
-- 联机云函数：`cloudfunctions/flyingRoom`，使用微信上下文 OPENID，服务器掷骰
-- 数据持久化：**PostgreSQL**，非 NoSQL，单表 `public.flying_rooms` 保存 JSONB 房间状态
-- 并发安全：每个写操作 `BEGIN` → `SELECT ... FOR UPDATE` → 验证修订号/权限 → `UPDATE` → `COMMIT`
-- 图片：`https://www.gskj.cloud/game-assets/v1/assets/FLYING/`，不打包 PNG
+在微信开发者工具中选择小游戏环境 `cloudbase-d1gj6cm1ncb1f981a` → 云开发 → 数据库：
 
-## 微信云服务开通问题
+1. **新建集合**，准确命名为 `flying_rooms`（全小写，使用下划线）。
+2. 为集合设置**仅管理员可读写**，禁止小程序端直接读取房间全量状态或直接改写掷骰结果。可在安全规则中使用仓库 `database.rules.json` 的内容：
+   ```json
+   {
+     "read": false,
+     "write": false
+   }
+   ```
+   这一限制是对小游戏客户端生效，云函数的服务端 SDK 仍然能够访问集合。
+3. **不需要手动插入文档**：首次创建房间时由 `flyingRoom` 写入首条文档，`_id` 等于 32 位房间码。
+4. **不需要 SQL 或 PostgreSQL 密码**，也不需要安装 `pg`。
 
-如果微信开发者工具报 `cloud init error: invalid scope 没有权限，请先开通云服务`，请求尚未正常进入云函数，**不要重新改 PostgreSQL 密码或 SQL 表**。优先核对小游戏真实 AppID、微信侧云服务是否开通以及小游戏账号是否关联/授权 `gskj-d7gp86qo88751cc06` 环境。仓库的 `project.config.json` 仍使用 `touristappid` 作为占位，不应直接用于真机联机。
+数据库集合应创建在微信小游戏环境，不是 `gskj-d7gp86qo88751cc06`。目前旧 PG 房间不会自动迁移；请在新环境中新建游戏房间。
 
-## ① 数据库：执行建表脚本
+## 二、上传并部署最新版云函数
 
-进入 CloudBase 环境 `gskj-d7gp86qo88751cc06` → **SQL 型数据库 → SQL 编辑器**，打开仓库的 [`sql/001_flying_rooms_postgres.sql`](sql/001_flying_rooms_postgres.sql)，将 SQL 全文复制到编辑器执行。
+微信开发者工具 → 当前项目 → `cloudfunctions/flyingRoom` 文件夹 → **右键「上传并部署：云端安装依赖」**，目标环境必须是 `cloudbase-d1gj6cm1ncb1f981a`。
 
-该脚本只创建房间表、过期索引、启用 RLS 并撤销 PUBLIC 的表权限，**不删除已有表**。RLS 默认拒绝普通客户端操作；云函数所用数据库角色必须拥有该表的 INSERT、SELECT 和 UPDATE 权限。最简单的初次验证是使用建表所有者角色；上线前应配置最小权限独立账号。
+- 类型：**普通云函数（Event）**；
+- 函数名：`flyingRoom`；执行入口：`index.main`；
+- Node.js 运行环境：20.x（按控制台支持版本选）；
+- 依赖只需要 `wx-server-sdk ~3.0.1`；不再需要 `pg`；
+- 后端操作 `flying_rooms` 集合，使用 `db.runTransaction()` 保存对局；
+- 云函数环境变量里原先的 `PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD/PGSSLMODE` 已不再使用；更新后可视需要在**新函数**中删除废弃配置，旧环境无需修改。
 
-执行完成后，在 SQL 编辑器执行：
+如微信开发者工具不能上传，也可用 GitHub Actions 的 **Package flyingRoom for SCF** 产出的标准 ZIP，在微信小游戏云开发控制台上传，不要直接上传 GitHub Artifacts 的外层 ZIP 文件。
 
-```sql
-SELECT to_regclass('public.flying_rooms') AS flying_rooms_table;
-SELECT relrowsecurity FROM pg_class WHERE oid='public.flying_rooms'::regclass;
+## 三、云函数调用自检
+
+在微信开发者工具的**小游戏 JavaScript Console** 执行：
+
+```javascript
+wx.cloud.init({env:'cloudbase-d1gj6cm1ncb1f981a'});
+wx.cloud.callFunction({
+  name:'flyingRoom',
+  data:{action:'get',roomId:'invalid'}
+}).then(r=>console.log('flyingRoom:',r.result))
+  .catch(e=>console.error('调用失败',e));
 ```
 
-预期 `flying_rooms_table` 有值，`relrowsecurity` 为 `true`。不要创建 NoSQL 集合 `flying_rooms`，也不要把旧 `database.rules.json` 作为数据库权限配置。
+`{ok:false,code:'ROOM',message:'房间码无效'}` 是**预期结果**：说明微信小游戏已经成功执行最新后端函数。若仍显示“未配置 PostgreSQL”，表示新后端代码**尚未成功替换云端**；若 `function not found` 或 `invalid scope`，优先检查 AppID、环境、函数部署及授权。
 
-## ② 云函数连接信息（不要提交密码）
+随后在小游戏创建联机房间，云数据库 `flying_rooms` 中应出现一条由服务端写入的房间文档，内部有 `state`、`expiresAt` 和 `updatedAt`。
 
-在腾讯云 CloudBase 控制台查看 PostgreSQL 的**连接参数**（不是 SQL 编辑器里的 `version()` 结果）。打开该环境中的「云函数/托管」，新建或编辑 `flyingRoom` 普通事件云函数，选择 Node.js 18 或更高运行时，将这些信息设置为**云函数环境变量**：
+## 四、多人联机一致性
 
-| 变量 | 内容 |
-| --- | --- |
-| `PGHOST` | 数据库连接主机地址（优先可用的同地域内网地址） |
-| `PGPORT` | 数据库端口，一般 5432，实际以控制台为准 |
-| `PGDATABASE` | SQL 编辑器正在操作的数据库名称 |
-| `PGUSER` | 具有房间表读取和写入权限的数据库账号 |
-| `PGPASSWORD` | 账号密码（仅填入云函数设置，**不要发给聊天或 GitHub**） |
-| `PGSSLMODE` | 默认 `verify-full` 验证证书；仅在控制台明确指示或测试环境使用 `require`（不验证证书）；内网允许明文时才用 `disable` |
+房间状态存放在同一个文档的 `state` 对象里。服务器根据真实微信 OPENID 校验房间成员，所有重要写操作走 **`db.runTransaction`**；同时检查 `revision` 与 `requestId`，避免重复提交或多名玩家同时抢座而覆盖数据。读请求只返回过滤后的房间视图，不向小游戏前端返回参与者的 OPENID。
 
-**重要：** CloudBase SQL 编辑器能运行 SQL 不能自动证明云函数能直连数据库。需要在 CloudBase 控制台确认 PostgreSQL 地址、账号、网络连通性及 SSL 配置。无法直连时请先核实 CloudBase 的网络访问设置，不要把用户数据库密码写入小游戏前端。
+`runTransaction` 依赖云函数所在环境支持**微信文档数据库事务**，不支持事务的数据库版本不能安全运行当前四人联机持久化。如果控制台报告事务不支持，请先确认环境数据库类型和 SDK 支持情况，**不要降级成直接 get 后 update 的非原子写法**。
 
-## ③ 部署云函数与小游戏
-
-通过微信开发者工具在本仓库根目录导入为**小游戏**，并在根目录 `project.config.json` 中填你自己的微信**小游戏** AppID。打开 CloudBase 并关联该 AppID 的环境。
-
-在小游戏绑定的 CloudBase 环境 `cloudbase-d1gj6cm1ncb1f981a` 中，将 `cloudfunctions/flyingRoom` 目录**上传并部署（云端安装依赖）**，确认云端已安装 `pg` 和 `wx-server-sdk`。`src/config.js` 的 `envId` 已切换至微信侧环境 `cloudbase-d1gj6cm1ncb1f981a`，静态资源地址沿用原有域名。
-
-### 常见问题
-
-- `云函数未配置 PostgreSQL`：检查云函数环境变量是否填写及函数是否重新部署。
-- `请求失败，请检查云函数 PostgreSQL 连接与表结构`：检查 PostgreSQL 的地址、权限、SSL、表是否建好、函数云端日志中的 PG 错误码。
-- `无法获取微信身份`：检查小游戏 AppID、关联环境、是否真机从合法小游戏入口调用。
-- `source package include invalid app.wxss`：导入错了普通小程序工程；本分支**没有 WXML/WXSS**。
-- `roll` 或 `move` 返回 `STALE`：不同手机已提交更新，重新获取房间状态后按新版本操作。
-
-## ④ 验收
-
-在仓库根目录运行：
+## 五、源码测试
 
 ```cmd
-node --test tests\*.test.js
+cd /d "C:\Users\费克玛尼\flying-chess-minigame"
+node --test
 ```
 
-测试覆盖本地规则、机器人、运动分帧、Canvas 界面、PostgreSQL JSONB 逻辑、并发锁模拟和防重复提交。**这些是离线模拟测试，不代替连接真实 PostgreSQL 和真机联机验收。** 真机依次验证：单人三 AI、两人联机、四人联机、分享加入、掷骰、撞机、重复请求、后台重连和重赛。
+测试覆盖飞行棋完整规则、AI、动画、Canvas、好友房间、云数据库事务模拟、并发抢座、重复请求和客户端隐私过滤。这些测试**不等同于真实微信云数据库集成测试**，必须完成真机建房、两人加入、四人对局、断线重连、重赛验证。
 
-### 注意
-- 该分支独立于小游戏合集 main，暂未合并。
-- 最近生成的四角独立停机坪新版棋盘，尚未替换已托管的 `FG-BOARD-001.png`。
-- 房间记录目前 24 小时过期由业务判断，但**未配置定期清理过期数据库记录的任务**。
+## 六、上线文档
+
+- [微信云环境接入操作](docs/wechat-env-integration.md)
+- [V1.0 内容审核和验收清单](docs/v1.0-release-and-review.md)
+- [标准云函数 ZIP 自动打包工作流](.github/workflows/package-flying-room.yml)
+
+**旧 PG SQL 迁移脚本** `sql/001_flying_rooms_postgres.sql` 仅作为历史兼容存档，**方案 B 不执行该 SQL，也不迁移旧数据库**。
