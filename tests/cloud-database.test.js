@@ -1,0 +1,179 @@
+'use strict';
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs'),path=require('node:path');
+const {createHandler,COLLECTION}=require('../cloudfunctions/flyingRoom/index');
+
+function memoryCloudDB(){
+ const docs=new Map(),ops=[];
+ let gate=Promise.resolve(),active=0,peak=0;
+ const db={
+  collection(name){
+   assert.equal(name,COLLECTION);
+   return {
+    async add({data}){
+     ops.push('add');
+     if(docs.has(data._id))throw Error('duplicate _id');
+     docs.set(data._id,structuredClone(data));return {_id:data._id};
+    },
+    doc(id){return {
+     async get(){
+      ops.push('get');
+      return {data:docs.has(id)?structuredClone(docs.get(id)):null};
+     }
+    };}
+   };
+  },
+  async runTransaction(callback){
+   let release;
+   const prior=gate;
+   gate=new Promise(done=>{release=done;});
+   await prior;
+   active++;peak=Math.max(peak,active);
+   const changes=new Map();
+   try{
+    const transaction={
+     collection(name){
+      assert.equal(name,COLLECTION);
+      return {doc(id){
+       return {
+        async get(){
+         ops.push('tx.get');
+         return {data:changes.has(id)?structuredClone(changes.get(id)):
+          docs.has(id)?structuredClone(docs.get(id)):null};
+        },
+        async update({data}){
+         ops.push('tx.update');
+         if(!docs.has(id))return {stats:{updated:0}};
+         const d=changes.get(id)||structuredClone(docs.get(id));
+         changes.set(id,{...d,...structuredClone(data)});
+         return {stats:{updated:1}};
+        }
+       };
+      }};
+     }
+    };
+    const ret=await callback(transaction);
+    for(const [id,data] of changes)docs.set(id,data);
+    return ret;
+   }finally{
+    active--;release();
+   }
+  }
+ };
+ return {db,docs,ops,get peak(){return peak;}};
+}
+function make(){
+ const memory=memoryCloudDB();
+ let current=10000;
+ const uid=u=>createHandler({
+  getUID:()=>u,
+  getDB:()=>memory.db,
+  randomBytes:size=>Buffer.alloc(size,255),
+  now:()=>current,
+  logger:{error:()=>{}}
+ });
+ return {memory,uid,tick(ms){current+=ms;}};
+}
+function request(room,action,label,extra={}){
+ return {action,roomId:room.id,revision:room.revision,
+  requestId:'request_'+label,...extra};
+}
+test('Cloud DB: create room persists by _id, membership and no PGPASSWORD',async()=>{
+ const {memory,uid}=make();
+ const host=uid('host');
+ const created=await host({action:'create',name:'房主',bots:{count:3,difficulty:'normal'}});
+ assert.equal(created.ok,true);
+ assert.equal(created.room.seats.filter(Boolean).length,4);
+ assert.equal(memory.docs.size,1);
+ assert.equal(memory.docs.get(created.room.id)._id,created.room.id);
+ assert.equal(memory.docs.get(created.room.id).state.host,'host');
+ const get=await host({action:'get',roomId:created.room.id});
+ assert.equal(get.ok,true);
+ assert.equal(get.room.id,created.room.id);
+ assert.equal('host' in get.room,false);
+ assert.equal((await uid('stranger')({action:'get',roomId:created.room.id})).code,'FORBIDDEN');
+ assert.equal((await host({action:'get',roomId:'1'.repeat(32)})).code,'ROOM');
+ const src=fs.readFileSync(path.join(__dirname,'../cloudfunctions/flyingRoom/index.js'),'utf8');
+ assert.ok(src.includes("cloud.database({throwOnNotFound:false})"));
+ assert.ok(!src.includes("require('pg')"));
+ assert.ok(!src.includes('PGPASSWORD'));
+});
+
+test('Cloud DB: ready/start/roll/move, server dice and duplicate request id',async()=>{
+ const {memory,uid}=make();
+ const run=uid('host');
+ let room=(await run({action:'create',bots:{count:3,difficulty:'normal'}})).room;
+ let result=await run(request(room,'ready','ready001'));
+ assert.equal(result.ok,true);
+ room=result.room;
+ result=await run(request(room,'start','start001'));
+ assert.equal(result.ok,true);
+ room=result.room;
+ assert.equal(room.status,'playing');
+ assert.equal(room.round,1);
+ result=await run(request(room,'roll','roll0001',{die:1}));
+ assert.equal(result.ok,true);
+ assert.equal(result.room.lastRoll.die,6);
+ const afterRoll=result.room;
+ const again=await run(request(room,'roll','roll0001',{die:1}));
+ assert.equal(again.ok,true);
+ assert.equal(again.room.revision,afterRoll.revision);
+ assert.equal(memory.docs.get(room.id).state.revision,afterRoll.revision);
+ assert.ok(memory.ops.includes('tx.get'));
+ assert.ok(memory.ops.includes('tx.update'));
+ room=afterRoll;
+ result=await run(request(room,'move','move0001',{piece:0}));
+ assert.equal(result.ok,true);
+ assert.ok(result.room.revision>room.revision);
+ const stale=await run(request(room,'move','different',{piece:0}));
+ assert.equal(stale.code,'STALE');
+});
+
+test('Cloud DB: simultaneous joins with only 3 seats, no overbooking',async()=>{
+ const {memory,uid}=make();
+ const id=(await uid('a')({action:'create',name:'房主'})).room.id;
+ const attempts=await Promise.all(['b','c','d','e'].map(name=>
+  uid(name)({action:'join',roomId:id,name})));
+ assert.equal(attempts.filter(r=>r.ok).length,3);
+ assert.equal(attempts.filter(r=>r.code==='FULL').length,1);
+ const room=(await uid('a')({action:'get',roomId:id})).room;
+ assert.equal(room.seats.filter(Boolean).length,4);
+ assert.equal(new Set(room.seats.filter(Boolean).map(s=>s.name)).size,4);
+ assert.equal(memory.peak,1);
+ assert.equal(memory.docs.get(id).state.revision,3);
+});
+
+test('Cloud DB: simultaneous ready commands reject stale revision, no overwrites',async()=>{
+ const {memory,uid}=make();
+ const host=uid('host');
+ const r=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
+ const both=await Promise.all([
+  host(request(r,'ready','ready0001')),
+  host(request(r,'ready','ready0002'))
+ ]);
+ assert.equal(both.filter(x=>x.ok).length,1);
+ assert.equal(both.filter(x=>x.code==='STALE').length,1);
+ assert.equal(memory.docs.get(r.id).state.revision,1);
+ assert.equal(memory.peak,1);
+});
+
+test('Cloud DB: invalid operations have no write and timeout respects server time',async()=>{
+ const {memory,uid,tick}=make(),host=uid('host');
+ let room=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
+ const before=memory.ops.filter(x=>x==='tx.update').length;
+ assert.equal((await host(request(room,'move','bad00001',{piece:0}))).code,'PHASE');
+ assert.equal(memory.ops.filter(x=>x==='tx.update').length,before);
+ room=(await host(request(room,'ready','ready0001'))).room;
+ room=(await host(request(room,'start','start0001'))).room;
+ assert.equal((await host(request(room,'timeout','timeout0'))).code,'TOO_EARLY');
+ tick(61000);
+ assert.equal((await host(request(room,'timeout','timeout1'))).ok,true);
+});
+
+test('Cloud DB: zero dependency on PostgreSQL or schema migrations',()=>{
+ const pkg=require('../cloudfunctions/flyingRoom/package.json');
+ assert.equal(pkg.dependencies.pg,undefined);
+ assert.ok(pkg.dependencies['wx-server-sdk']);
+ assert.equal(COLLECTION,'flying_rooms');
+});
