@@ -1,0 +1,40 @@
+name: Package flyingRoom for SCF
+on:
+  push:
+    branches:
+      - standalone/flying-chess-minigame
+    paths:
+      - 'cloudfunctions/flyingRoom/**'
+      - '.github/workflows/package-flying-room.yml'
+  workflow_dispatch:
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Node.js entry point
+        run: |
+          test -f cloudfunctions/flyingRoom/index.js
+          test -f cloudfunctions/flyingRoom/package.json
+          node --check cloudfunctions/flyingRoom/index.js
+          node --check cloudfunctions/flyingRoom/service.js
+      - name: Build ZIP with root-level index.js
+        run: |
+          cd cloudfunctions/flyingRoom
+          zip -q -r "$GITHUB_WORKSPACE/flyingRoom.zip" index.js service.js package.json lib/
+          cd "$GITHUB_WORKSPACE"
+          unzip -t flyingRoom.zip
+          unzip -Z -1 flyingRoom.zip | tee /tmp/flying-files.txt
+          grep -Fxq 'index.js' /tmp/flying-files.txt
+          grep -Fxq 'service.js' /tmp/flying-files.txt
+          grep -Fxq 'package.json' /tmp/flying-files.txt
+          ! grep -q '^cloudfunctions/' /tmp/flying-files.txt
+          ! grep -q '^flyingRoom/' /tmp/flying-files.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: flyingRoom-scf-zip
+          path: flyingRoom.zip
+          if-no-files-found: error
+          retention-days: 14
