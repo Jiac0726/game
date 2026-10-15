@@ -71,8 +71,13 @@ function createHandler(deps={}){
     const original=readRoom(await doc.get());
     const next=apply(original,uid,event,now,serverRandom(bytes(512)));
     if(next.revision!==original.revision){
-     await doc.update({data:{
-      state:next,expiresAt:next.expiresAt,updatedAt:clock()
+     // SDK Document.update flattens nested objects into dotted paths.
+     // Before the first start, state.game is null; trying to write
+     // state.game.colors then raises -502001 (Cannot create field in null).
+     // Replace the complete document INSIDE the existing transaction instead.
+     // The transaction still protects concurrent room revisions and request IDs.
+     await doc.set({data:{
+      _id:event.roomId,state:next,expiresAt:next.expiresAt,updatedAt:clock()
      }});
     }
     latest=next;
