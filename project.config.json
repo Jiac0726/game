@@ -31,5 +31,6 @@
         "value": "database.rules.json"
       }
     ]
-  }
+  },
+  "cloudfunctionRoot": "cloudfunctions/"
 }
