@@ -50,9 +50,9 @@ function memoryCloudDB(){
         },
         async set({data}){
          ops.push('tx.set');
-         assert.equal(data._id,id,'document replacement keeps the room ID');
+         assert.ok(!Object.hasOwn(data,'_id'),'doc(id).set leaves _id immutable');
          assert.ok(docs.has(id),'transactions must never invent a room');
-         changes.set(id,structuredClone(data));
+         changes.set(id,{_id:id,...structuredClone(data)});
          return {stats:{updated:1,created:0}};
         }
        };
