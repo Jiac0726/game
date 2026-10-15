@@ -23,6 +23,11 @@ class FlyingChessGame{
  }
  boot(){
   const wxApi=this.wx;
+  // Initialize CloudBase when the mini-game boots, not only on the first
+  // room action. This also lets DevTools Console call wx.cloud directly.
+  if(wxApi.cloud&&typeof wxApi.cloud.init==='function'){
+   try{this.api.init();}catch(e){this.cloudInitError=e;}
+  }
   this.canvas=wxApi.createCanvas();
   this.ctx=this.canvas.getContext('2d');
   this.resize();
@@ -116,6 +121,9 @@ class FlyingChessGame{
    '具体原因：'+(error.detail||'云端未开启调试详情。到 flyingRoom 云函数环境变量设置 FLYING_ROOM_DEBUG=1 后重新测试。')
   ].join('\n');
   this.lastCloudError=details;
+  // Console is a privacy-permission-free fallback when clipboard access is
+  // blocked by WeChat's privacy gate (errno 1026).
+  console.error('FLYING_ERROR:',details);
   const canCopy=typeof this.wx.setClipboardData==='function';
   this.wx.showModal({
    title:'云数据库错误详情',
@@ -124,7 +132,22 @@ class FlyingChessGame{
    cancelText:'关闭',
    confirmText:canCopy?'复制报错':'知道了',
    success:result=>{
-    if(result&&result.confirm&&canCopy)this.wx.setClipboardData({data:details});
+    if(!result||!result.confirm||!canCopy)return;
+    try{
+     this.wx.setClipboardData({
+      data:details,
+      fail:err=>{
+       console.warn('飞行棋：微信隐私授权阻止复制，请在 Console 复制 FLYING_ERROR',err&&err.errMsg);
+       if(this.wx.showModal)this.wx.showModal({
+        title:'复制未成功',
+        content:'微信尚未完成剪贴板隐私授权。完整错误已写入 Console，查找 FLYING_ERROR 即可手动复制。',
+        showCancel:false
+       });
+      }
+     });
+    }catch(copyError){
+     console.warn('飞行棋：剪贴板调用不可用，请在 Console 查找 FLYING_ERROR',copyError&&copyError.message);
+    }
    }
   });
  }
