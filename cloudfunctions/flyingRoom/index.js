@@ -6,6 +6,7 @@ const {createRoom,apply,view}=require('./service');
 // A complete room is one document, id == document _id. All mutations use
 // server-side runTransaction so concurrent requests never silently overwrite a turn.
 const COLLECTION='flying_rooms';
+const VERSION='wxdb-txset-20261015-2';
 function failure(code,message){const err=new Error(message);err.code=code;throw err;}
 function serverRandom(bytes){
  let cursor=0;
@@ -17,8 +18,12 @@ function serverRandom(bytes){
 }
 function readRoom(snapshot){
  const doc=snapshot&&snapshot.data;
- if(!doc||!doc.state||typeof doc.state!=='object')failure('ROOM','房间不存在');
- return doc.state;
+ // One previous deployment accidentally used transaction.doc.set({data:{...}}),
+ // which may have wrapped room state under a literal "data" property.
+ // Read both layouts and rewrite them into the canonical layout on next mutation.
+ const room=doc&&(doc.state||doc.data&&doc.data.state);
+ if(!room||typeof room!=='object')failure('ROOM','房间不存在');
+ return room;
 }
 const CLIENT_ERRORS=new Set([
  'AUTH','ROOM','EXPIRED','FULL','STARTED','FORBIDDEN','PLAYING','REQUEST',
@@ -41,6 +46,9 @@ function createHandler(deps={}){
    const db=getDB();
    if(!db||typeof db.collection!=='function'||typeof db.runTransaction!=='function')
     failure('CONFIG','微信云数据库未就绪，请确认启用云开发数据库');
+   // Read-only, authenticated deployment probe. It never alters room data.
+   if(event.action==='health')
+    return {ok:true,version:VERSION,store:'wechat-cloud-database',serverNow:clock()};
    if(event.action==='create'){
     stage='create';
     const id=bytes(16).toString('hex');
@@ -76,9 +84,12 @@ function createHandler(deps={}){
      // state.game.colors then raises -502001 (Cannot create field in null).
      // Replace the complete document INSIDE the existing transaction instead.
      // The transaction still protects concurrent room revisions and request IDs.
-     await doc.set({data:{
+     // IMPORTANT: transaction.doc.set takes the replacement object DIRECTLY.
+     // Unlike ordinary collection.add({data}), wrapping it in {data:{...}}
+     // creates a literal "data" field and corrupts subsequent reads.
+     await doc.set({
       state:next,expiresAt:next.expiresAt,updatedAt:clock()
-     }});
+     });
     }
     latest=next;
    });
@@ -118,3 +129,4 @@ exports.main=async event=>{
 };
 exports.createHandler=createHandler;
 exports.COLLECTION=COLLECTION;
+exports.VERSION=VERSION;
