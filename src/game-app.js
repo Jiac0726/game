@@ -155,6 +155,7 @@ class FlyingChessGame{
   try{
    const result=await this.api.call('create',{name:this.nickname,rules:this.rules,bots:{count:this.botCount,difficulty:this.difficulty}});
    this.roomId=result.room.id;this.scene='room';this.accept(result);
+   this.say(''); // Clear the "creating room" progress label after success.
    this.wx.setStorageSync&&this.wx.setStorageSync('flyingRoomId',this.roomId);
    this.schedulePoll(1500);
   }catch(e){this.say(e.message);}
@@ -166,6 +167,7 @@ class FlyingChessGame{
   try{
    const r=await this.api.call('join',{roomId:id,name:this.nickname});
    this.roomId=id;this.scene='room';this.accept(r);
+   this.say(''); // Clear the "joining room" progress label after success.
    this.wx.setStorageSync&&this.wx.setStorageSync('flyingRoomId',id);
    this.schedulePoll(1500);
   }catch(e){this.say(e.message);}
