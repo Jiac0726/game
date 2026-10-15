@@ -95,3 +95,33 @@ test('new multiplayer lobby defaults to three open human invitation seats',()=>{
  assert.equal(room.seats.filter(Boolean).length,1);
  assert.equal(room.seats.filter(s=>s===null).length,3);
 });
+
+test('CloudDB failure opens detailed copyable dialog without polling popups',()=>{
+ const {app}=setup();
+ let shown,clipboard;
+ app.wx.showModal=opts=>{shown=opts;};
+ app.wx.setClipboardData=opts=>{clipboard=opts.data;};
+ const e=Object.assign(new Error('云数据库事务操作失败（-502001）'),{
+  code:'DATABASE',stage:'transaction',action:'ready',
+  dbCode:'-502001',detail:"Cannot create field 'colors' in element {game: null}"
+ });
+ app.reportCloudError(e,'ready');
+ assert.equal(app.message,e.message);
+ assert.equal(shown.title,'云数据库错误详情');
+ assert.match(shown.content,/ready/);
+ assert.match(shown.content,/transaction/);
+ assert.match(shown.content,/-502001/);
+ assert.match(shown.content,/Cannot create field/);
+ shown.success({confirm:true});
+ assert.match(clipboard,/Cannot create field/);
+});
+test('CloudDB production error dialog suggests turning on temporary diagnostics',()=>{
+ const {app}=setup();
+ let dialog;
+ app.wx.showModal=opts=>{dialog=opts;};
+ app.reportCloudError(Object.assign(new Error('云数据库读取失败'),{
+  code:'DATABASE',stage:'get',action:'get',dbCode:'SERVER'
+ }),'get');
+ assert.match(dialog.content,/FLYING_ROOM_DEBUG=1/);
+ assert.ok(!dialog.content.includes('undefined'));
+});
