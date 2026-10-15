@@ -79,7 +79,7 @@ function createHandler(deps={}){
   }catch(e){
    if(client){try{await client.query('ROLLBACK');}catch(_){}}
    if(e.code==='CONFIG'||e.code==='AUTH'||e.code==='ROOM'||e.code==='EXPIRED'||
-      e.code==='FULL'||e.code==='STARTED'||e.code==='FORBIDDEN'||e.code==='REQUEST'||
+      e.code==='FULL'||e.code==='STARTED'||e.code==='FORBIDDEN'||e.code==='PLAYING'||e.code==='REQUEST'||
       e.code==='STALE'||e.code==='HOST'||e.code==='PHASE'||e.code==='NOT_READY'||
       e.code==='TURN'||e.code==='MOVE'||e.code==='TIMEOUT'||e.code==='TOO_EARLY'||
       e.code==='BOTS'||e.code==='ACTION'||e.code==='BOT_LIMIT'||e.code==='BOT_MOVE'){
