@@ -6,7 +6,7 @@ const {createRoom,apply,view}=require('./service');
 // A complete room is one document, id == document _id. All mutations use
 // server-side runTransaction so concurrent requests never silently overwrite a turn.
 const COLLECTION='flying_rooms';
-const VERSION='wxdb-debug-20261015-3';
+const VERSION='wxdb-tx-set-data-20261015-4';
 function redactDebugMessage(value){
  // Diagnostic details are opt-in and may still contain service topology.
  // Redact common credential formats before sending any SDK string to a client.
@@ -93,12 +93,15 @@ function createHandler(deps={}){
      // state.game.colors then raises -502001 (Cannot create field in null).
      // Replace the complete document INSIDE the existing transaction instead.
      // The transaction still protects concurrent room revisions and request IDs.
-     // IMPORTANT: transaction.doc.set takes the replacement object DIRECTLY.
-     // Unlike ordinary collection.add({data}), wrapping it in {data:{...}}
-     // creates a literal "data" field and corrupts subsequent reads.
-     await doc.set({
+     // Verified against the deployed wx-server-sdk: transaction.doc.set
+     // requires an options object with a `data` property. Passing the room
+     // object directly fails with "parameter.data should be object instead
+     // of undefined" BEFORE the database write.
+     // Unlike update(), set() replaces the whole document, so it can safely
+     // replace the old state.game=null with a new game object.
+     await doc.set({data:{
       state:next,expiresAt:next.expiresAt,updatedAt:clock()
-     });
+     }});
     }
     latest=next;
    });
