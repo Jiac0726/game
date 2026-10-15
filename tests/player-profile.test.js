@@ -69,7 +69,7 @@ test('Canvas has navigable v1 progress, shop and guide screens',()=>{
  assert.ok(app.buttons.length>=3);
  app.openShop();
  assert.doesNotThrow(()=>app.render());
- assert.ok(app.buttons.length>=5);
+ assert.ok(app.buttons.length>=4, 'owned active theme has no click handler');
  app.openGuide();
  assert.doesNotThrow(()=>app.render());
  assert.ok(app.buttons.length>=2);
