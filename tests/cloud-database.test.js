@@ -163,7 +163,8 @@ test('Cloud DB: authenticated read-only deployment health reports the backend ve
  const {memory,uid}=make();
  const result=await uid('host')({action:'health'});
  assert.equal(result.ok,true);
- assert.equal(result.version,'wxdb-txset-20261015-2');
+ assert.equal(result.version,'wxdb-debug-20261015-3');
+ assert.equal(result.debugEnabled,false);
  assert.equal(result.store,'wechat-cloud-database');
  assert.equal(memory.docs.size,0);
  assert.equal(memory.ops.length,0);
@@ -185,6 +186,47 @@ test('Cloud DB: bad previous set wrapping recovers existing room on mutation',as
  assert.equal(doc.state.seats[0].ready,true);
  assert.equal(Object.hasOwn(doc,'data'),false);
  assert.equal(doc._id,room.id);
+});
+
+test('Cloud DB: safe diagnostics include action, stage and code without secret detail',async()=>{
+ const logs=[];
+ const db={
+  collection:()=>({doc:()=>({get:async()=>{throw Object.assign(
+   Error('password=unsafe-secret Cannot create field colors'),{code:'-502001'});}})}),
+  runTransaction:()=>{}
+ };
+ const handle=createHandler({
+  getUID:()=> 'host',getDB:()=>db,debugEnabled:false,
+  logger:{error:(...args)=>logs.push(args)}
+ });
+ const r=await handle({action:'get',roomId:'a'.repeat(32)});
+ assert.equal(r.ok,false);
+ assert.equal(r.code,'DATABASE');
+ assert.equal(r.action,'get');
+ assert.equal(r.stage,'get');
+ assert.equal(r.dbCode,'-502001');
+ assert.equal(r.detail,undefined);
+ assert.ok(!JSON.stringify(r).includes('unsafe-secret'));
+ assert.ok(logs.length);
+});
+
+test('Cloud DB: opt-in diagnostics redact password fields and expose SDK cause',async()=>{
+ const db={
+  collection:()=>({doc:()=>({get:async()=>{throw Object.assign(
+   Error("password=unsafe-secret Cannot create field 'colors' in element {game: null}"),{code:'-502001'});}})}),
+  runTransaction:()=>{}
+ };
+ const handle=createHandler({
+  getUID:()=> 'host',getDB:()=>db,debugEnabled:true,
+  logger:{error:()=>{}}
+ });
+ const health=await handle({action:'health'});
+ assert.equal(health.debugEnabled,true);
+ const r=await handle({action:'get',roomId:'a'.repeat(32)});
+ assert.equal(r.dbCode,'-502001');
+ assert.match(r.detail,/Cannot create field/);
+ assert.ok(!r.detail.includes('unsafe-secret'));
+ assert.match(r.detail,/\[REDACTED\]/);
 });
 
 test('Cloud DB: simultaneous joins with only 3 seats, no overbooking',async()=>{
