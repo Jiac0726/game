@@ -48,12 +48,19 @@ function memoryCloudDB(){
          throw Object.assign(Error(
           "Cannot create field 'colors' in element {game: null}"),{code:'-502001'});
         },
-        async set(data){
-         // Tencent's server-side transaction.set takes the replacement doc
-         // directly, NOT {data: replacement}; ordinary collection.add differs.
+        async set(options){
+         // Reproduce actual wx-server-sdk validation observed in production.
+         // Passing {state:...} without {data:{state:...}} rejects with code -1.
          ops.push('tx.set');
+         if(!options||!options.data||typeof options.data!=='object'||
+            Array.isArray(options.data)){
+          const err=new Error('parameter.data should be object instead of undefined');
+          err.code=-1;
+          throw err;
+         }
+         const data=options.data;
          assert.ok(!Object.hasOwn(data,'_id'),'doc(id).set leaves _id immutable');
-         assert.ok(!Object.hasOwn(data,'data'),'transaction set must not wrap data');
+         assert.ok(!Object.hasOwn(data,'data'),'replacement document must not nest data');
          assert.ok(Object.hasOwn(data,'state'),'transaction set requires state');
          assert.ok(docs.has(id),'transactions must never invent a room');
          changes.set(id,{_id:id,...structuredClone(data)});
@@ -142,6 +149,18 @@ test('Cloud DB: ready/start/roll/move, server dice and duplicate request id',asy
 });
 
 
+test('Cloud DB: SDK rejects transaction set without data envelope (-1)',async()=>{
+ const {memory,uid}=make(),host=uid('host');
+ const room=(await host({action:'create'})).room;
+ const result=await host(request(room,'ready','ready001'));
+ assert.equal(result.ok,true,'ready must pass required set({data}) shape');
+ const stored=memory.docs.get(room.id);
+ assert.equal(stored.state.seats[0].ready,true);
+ assert.equal(stored.state.revision,1);
+ assert.equal(Object.hasOwn(stored,'data'),false,'no accidental data nesting');
+ assert.ok(memory.ops.includes('tx.set'));
+});
+
 test('Cloud DB regression -502001: first start replaces null game atomically',async()=>{
  const {memory,uid}=make(),host=uid('host');
  let room=(await host({action:'create',bots:{count:3,difficulty:'normal'}})).room;
@@ -164,7 +183,7 @@ test('Cloud DB: authenticated read-only deployment health reports the backend ve
  const {memory,uid}=make();
  const result=await uid('host')({action:'health'});
  assert.equal(result.ok,true);
- assert.equal(result.version,'wxdb-debug-20261015-3');
+ assert.equal(result.version,'wxdb-tx-set-data-20261015-4');
  assert.equal(result.debugEnabled,false);
  assert.equal(result.store,'wechat-cloud-database');
  assert.equal(memory.docs.size,0);
