@@ -36,11 +36,11 @@ wx.cloud.callFunction({
   .catch(e=>console.error('云函数调用错误',e));
 ```
 
-正确结果应包含 `ok:true`、`store:'wechat-cloud-database'` 和 **`version:'wxdb-debug-20261015-3'`**。若返回 `ROOM / 房间码无效` 或没有版本号，表示云端仍执行旧版 `flyingRoom`，或小游戏请求的是别的云环境；如果界面仍显示「请检查新环境是否创建 flying_rooms」，也可能是旧版函数报错或旧提示未清除。
+正确结果应包含 `ok:true`、`store:'wechat-cloud-database'` 和 **`version:'wxdb-tx-set-data-20261015-4'`**。若返回 `ROOM / 房间码无效` 或没有版本号，表示云端仍执行旧版 `flyingRoom`，或小游戏请求的是别的云环境；如果界面仍显示「请检查新环境是否创建 flying_rooms」，也可能是旧版函数报错或旧提示未清除。
 
 本热修复解决两个真实遇到的服务端事务问题：
 - `-502001 Cannot create field 'colors' in element {game: null}`：`doc.update` 把嵌套对象展开，不能在 `null` 创建 `colors`。
-- **微信 Node SDK 事务中 `doc.set` 接收裸文档**：应使用 `tx.collection('flying_rooms').doc(id).set({state:next,expiresAt:...,updatedAt:...})`，**不要**像普通 `collection.add` 一样包一层 `{data:{...}}`，否则错误写成 `document.data.state`。
+- **实际部署的 `wx-server-sdk` 事务 `doc.set` 需要 `data` 属性**：必须写 `tx.collection('flying_rooms').doc(id).set({data:{state:next,expiresAt:...,updatedAt:...}})`。此前直接传 `{state:next,...}` 导致真实运行报 `errCode: -1 / parameter.data should be object instead of undefined`。切勿把其他版本的 Node SDK 文档与当前部署的 `wx-server-sdk` 混为一谈。
 
 热修复兼容读取上一次错误部署导致的 `document.data.state` 包装，后续正确事务写入将恢复到 `document.state`；不要求删除原房间。若仍失败，请从新环境 `flyingRoom` 的运行日志提取 `stage/action/code/message` 四个字段，不能只看 `200` 状态码。
 
@@ -68,13 +68,19 @@ FLYING_ROOM_DEBUG=1
 ```json
 {
   "ok": true,
-  "version": "wxdb-debug-20261015-3",
+  "version": "wxdb-tx-set-data-20261015-4",
   "store": "wechat-cloud-database",
   "debugEnabled": true
 }
 ```
 
 **安全提示**：诊断详情有基本的密码和令牌字符串脱敏，但不保证隐藏所有数据库内部信息，因此 `FLYING_ROOM_DEBUG=1` **只能临时用于开发环境／短时调试**，正式发布前一定删除或设置 `FLYING_ROOM_DEBUG=0`。用户无法在普通小游戏前端请求中自行开启此功能。默认关闭时仍会显示操作、阶段和错误码。
+
+### 2026-10-15 最新事务参数修复
+
+真实云函数日志曾显示 `action: ready`、`stage: transaction`、`dbCode: -1`，具体异常：`parameter.data should be object instead of undefined`。这说明上一版 `doc.set({state:...})` 调用被 SDK 本地参数校验拒绝，事务并未完成提交。
+
+本分支已改为 `doc.set({data:{state:next,expiresAt:next.expiresAt,updatedAt:clock()}})`，仍保留 `runTransaction` 的读→验证修订号→整体替换流程，并添加模拟 SDK 同样参数错误的回归测试。**必须重新部署 `flyingRoom`**，只有 `health.version === "wxdb-tx-set-data-20261015-4"` 才表示云端已使用本次修复。真实数据库操作仍须在微信环境中验收。
 
 ## C. 建房链路
 
