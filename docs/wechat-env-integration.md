@@ -23,6 +23,27 @@
 
 **验证云端版本**：从小游戏 Console 请求 `flyingRoom` 的 `get`，传 `roomId:'invalid'`。新版应返回 `ROOM / 房间码无效`。若还是“云函数未配置 PostgreSQL”，表明**新函数尚未更新成功**。旧 PG 环境的函数无需删除，历史数据无需迁移。
 
+## B2. 校验云端实际部署版本（2026-10-15 事务热修复）
+
+更新新版云函数后，在微信小游戏调试器 Console 执行：
+
+```javascript
+wx.cloud.callFunction({
+  name:'flyingRoom',
+  config:{env:'cloudbase-d1gj6cm1ncb1f981a'},
+  data:{action:'health'}
+}).then(r=>console.log('云函数版本',r.result))
+  .catch(e=>console.error('云函数调用错误',e));
+```
+
+正确结果应包含 `ok:true`、`store:'wechat-cloud-database'` 和 **`version:'wxdb-txset-20261015-2'`**。若返回 `ROOM / 房间码无效` 或没有版本号，表示云端仍执行旧版 `flyingRoom`，或小游戏请求的是别的云环境；如果界面仍显示「请检查新环境是否创建 flying_rooms」，也可能是旧版函数报错或旧提示未清除。
+
+本热修复解决两个真实遇到的服务端事务问题：
+- `-502001 Cannot create field 'colors' in element {game: null}`：`doc.update` 把嵌套对象展开，不能在 `null` 创建 `colors`。
+- **微信 Node SDK 事务中 `doc.set` 接收裸文档**：应使用 `tx.collection('flying_rooms').doc(id).set({state:next,expiresAt:...,updatedAt:...})`，**不要**像普通 `collection.add` 一样包一层 `{data:{...}}`，否则错误写成 `document.data.state`。
+
+热修复兼容读取上一次错误部署导致的 `document.data.state` 包装，后续正确事务写入将恢复到 `document.state`；不要求删除原房间。若仍失败，请从新环境 `flyingRoom` 的运行日志提取 `stage/action/code/message` 四个字段，不能只看 `200` 状态码。
+
 ## C. 建房链路
 
 1. 微信开发者工具以真实小游戏 AppID 编译 V1.0，`src/config.js` 的 `envId` 为 `cloudbase-d1gj6cm1ncb1f981a`。
