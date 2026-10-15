@@ -79,7 +79,12 @@ test('PG creates one JSONB room with 3 AI, then saves room ready/start/roll/move
  result=await run(request(room,'move','move0001',{piece:0}));
  assert.equal(result.ok,true);
  assert.ok(result.room.revision>room.revision);
- assert.ok(result.room.motion);
+ // A human six earns another roll; AI only starts after the human turn finishes.
+ if(result.room.game.turn===0){
+  assert.equal(result.room.game.phase,'roll','a six retains the human turn');
+ }else{
+  assert.ok(result.room.motion,'AI moves are persisted once the AI turn starts');
+ }
  assert.equal(database.data.get(room.id).revision,result.room.revision);
  const stale=await run(request(room,'move','bad00001',{piece:0}));
  assert.equal(stale.ok,false);
