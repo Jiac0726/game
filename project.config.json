@@ -18,6 +18,14 @@
       {
         "type": "file",
         "value": "README.md"
+      },
+      {
+        "type": "folder",
+        "value": "online"
+      },
+      {
+        "type": "folder",
+        "value": ".github"
       }
     ]
   }
