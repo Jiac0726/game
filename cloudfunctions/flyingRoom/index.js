@@ -77,7 +77,7 @@ function createHandler(deps={}){
      // Replace the complete document INSIDE the existing transaction instead.
      // The transaction still protects concurrent room revisions and request IDs.
      await doc.set({data:{
-      _id:event.roomId,state:next,expiresAt:next.expiresAt,updatedAt:clock()
+      state:next,expiresAt:next.expiresAt,updatedAt:clock()
      }});
     }
     latest=next;
