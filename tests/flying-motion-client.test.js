@@ -2,6 +2,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
 const {createRoom,apply,view}=require('../online/cloudfunctions/flyingRoom/service');
+const {buildFrames}=require('../online/miniprogram/lib/flying-motion');
 const ROOT=path.resolve(__dirname,'../online/miniprogram/pages/room');
 const ID='c'.repeat(32);
 let serial=0;
@@ -39,21 +40,35 @@ function robotRoom(){
 }
 test('connected clients play each bot frame in order, never replay same revision',()=>{
  const {client,tick,jobs}=makeClient(),{initial,final}=robotRoom();
+ const expectedFrames=buildFrames(final.motion,final.game.colors);
+ assert.ok(expectedFrames.length>3);
  client.accept({room:initial,serverNow:Date.now()});
  client.accept({room:final,serverNow:Date.now()});
  assert.equal(client.botAnimating,true);
  assert.equal(client.data.botAnimating,true);
- assert.ok(client.motionQueue.length>3);
+ assert.equal(client.motionQueue.length,expectedFrames.length-1);
  assert.equal(client.data.myTurn,true);
  const firstRemaining=client.motionQueue.length;
  client.accept({room:final,serverNow:Date.now()});
  assert.equal(client.motionQueue.length,firstRemaining);
- let count=0,hadIntermediate=false;
- while(jobs.size && count++<350){
-  if(client.animationBoard&&JSON.stringify(client.animationBoard)!==JSON.stringify(final.game.pieces))hadIntermediate=true;
+ const snapshot=()=>JSON.stringify({
+  pieces:client.animationBoard,point:client.animatedPoint,
+  label:client.data.botStatus,die:client.data.botDie
+ });
+ const shown=[snapshot()];
+ let count=0;
+ while(jobs.size && count<350){
+  count++;
   tick();
+  if(client.botAnimating)shown.push(snapshot());
  }
- assert.ok(count>10);assert.ok(hadIntermediate);
+ const expected=expectedFrames.map(frame=>JSON.stringify({
+  pieces:frame.pieces,point:frame.point,label:frame.label,die:frame.die
+ }));
+ assert.deepEqual(shown,expected,'client must display every generated bot frame in order');
+ assert.equal(count,expectedFrames.length,'all animation callbacks including completion must run');
+ assert.ok(expectedFrames.some(frame=>frame.pieces&&
+  JSON.stringify(frame.pieces)!==JSON.stringify(final.game.pieces)),'playback includes intermediate positions');
  assert.equal(client.botAnimating,false);
  assert.equal(client.data.botAnimating,false);
  assert.equal(client.animationBoard,null);

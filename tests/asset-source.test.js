@@ -2,6 +2,9 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const paths = require('../src/asset-files');
+const handdrawn = require('../src/shared-ui-assets').files;
+const fruit = require('../src/fruit-assets').files;
+const allPaths = { ...paths, ...handdrawn, ...fruit };
 const catalog = require('../src/asset-catalog');
 const { createAssetFiles } = require('../src/asset-source');
 
@@ -15,14 +18,14 @@ test('every catalog image has a stable path and dimensions without bundled PNGs'
 });
 test('remote library preserves IDs and aliases and joins paths exactly once', () => {
   const files = createAssetFiles({ baseUrl: 'https://cdn.example.com/game/v1///' });
-  assert.equal(Object.keys(files).length, Object.keys(paths).length);
-  for (const id of Object.keys(paths)) {
-    assert.equal(files[id], 'https://cdn.example.com/game/v1/' + paths[id]);
+  assert.equal(Object.keys(files).length, Object.keys(allPaths).length);
+  for (const id of Object.keys(allPaths)) {
+    assert.equal(files[id], 'https://cdn.example.com/game/v1/' + allPaths[id]);
   }
 });
 test('missing configuration uses drawn fallback; local images require explicit opt-in', () => {
   assert.deepEqual(createAssetFiles(), {});
-  assert.deepEqual(createAssetFiles({ useLocalAssets: true }), paths);
+  assert.deepEqual(createAssetFiles({ useLocalAssets: true }), allPaths);
 });
 test('reject unsafe or malformed asset library addresses', () => {
   for (const baseUrl of ['http://cdn.example.com', 'file:///assets', 'https://cdn.example.com?v=1', 'https://cdn.example.com/#x', 'https://cdn.example.com/../private', 'https://']) {

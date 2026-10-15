@@ -1,5 +1,5 @@
 'use strict';
-const paths = require('./asset-files');
+const paths = {...require('./asset-files'), ...require('./shared-ui-assets').files, ...require('./fruit-assets').files};
 
 function createAssetFiles(config = {}) {
   if (config.useLocalAssets === true) return { ...paths };
