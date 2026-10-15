@@ -12,7 +12,7 @@ class FlyingChessGame{
   this.api=createClient(wxApi);
   this.scene='home';this.rules=Object.assign({},DEFAULT_RULES);
   this.profile=profileLib.load(wxApi);this.sessionSeq=0;this.localMatchId='';
-  this.botCount=3;this.difficulty='normal';this.nickname='玩家';
+  this.botCount=0;this.difficulty='normal';this.nickname='玩家';
   this.room=null;this.roomId='';this.local=null;
   this.hidden=false;this.busy=false;this.message='';
   this.cache={};this.buttons=[];this.tokenTargets=[];
