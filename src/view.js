@@ -120,9 +120,14 @@ function waiting(app){
  const own=r.seats[r.seat],canBegin=r.seats.every(s=>s&&(s.ready||s.bot));
  button(app,27,559,321,49,own&&own.ready?'取消准备':'我准备好了',()=>app.command('ready'),'#a7dfbc',app.busy);
  if(r.isHost)button(app,27,618,321,48,'四人到齐，开始游戏',()=>app.command('start'),'#f6d675',app.busy||!canBegin);
- const hasVacancy=r.seats.includes(null);
- button(app,27,677,321,42,hasVacancy?'邀请好友进入':'座位已满 · 先减少 AI',
-  ()=>hasVacancy?app.share():app.say('将 AI 数量调到 0 并保存后，可以邀请三位好友'),
+ const hasVacancy=r.seats.includes(null),hasBots=r.seats.some(s=>s&&s.bot);
+ const inviteLabel=hasVacancy?'邀请好友进入':
+  hasBots?'座位已满 · 先减少 AI':'房间已满 · 四位玩家已就位';
+ const inviteAction=hasVacancy?()=>app.share():
+  hasBots?()=>app.say('将 AI 数量调到 0 并保存后，可以邀请三位好友'):
+  ()=>app.say('房间已满，已加入四名真人玩家');
+ button(app,27,677,321,42,app.pending?'重试未确认操作':inviteLabel,
+  app.pending?()=>app.sendPending():inviteAction,
   '#dbeaf6',app.busy);
 }
 function drawBoard(app,game,bx,by,size,canTap){
