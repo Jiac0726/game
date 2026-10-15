@@ -36,3 +36,17 @@ test('mini-game CloudBase FunctionName not found receives actionable code',async
  }},{timeoutMs:50});
  await assert.rejects(()=>client.call('create'),e=>e.code==='FUNCTION_NOT_FOUND');
 });
+
+test('mini-game retains structured CloudDB diagnostics for user-visible reporting',async()=>{
+ const client=createClient({cloud:{
+  init(){},
+  callFunction:async()=>({result:{
+   ok:false,code:'DATABASE',message:'云数据库事务操作失败（-502001）',
+   action:'ready',stage:'transaction',dbCode:'-502001',
+   detail:"Cannot create field 'colors' in element {game: null}"
+  }})
+ }},{timeoutMs:50});
+ await assert.rejects(()=>client.call('ready'),e=>
+  e.code==='DATABASE'&&e.action==='ready'&&e.stage==='transaction'&&
+  e.dbCode==='-502001'&&e.detail.includes('Cannot create field'));
+});
