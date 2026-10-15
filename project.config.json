@@ -1,9 +1,10 @@
 {
-  "description": "玩一会儿 · 微信小游戏源码（外置素材库）",
-  "compileType": "game",
+  "description": "手绘飞行棋：独立微信小程序（四人联机 / AI）",
+  "compileType": "miniprogram",
   "appid": "touristappid",
-  "projectname": "play-a-while",
-  "miniprogramRoot": "./",
+  "projectname": "flying-chess-standalone",
+  "miniprogramRoot": "miniprogram/",
+  "cloudfunctionRoot": "cloudfunctions/",
   "setting": {
     "es6": true,
     "minified": true,
@@ -16,16 +17,12 @@
         "value": "tests"
       },
       {
-        "type": "file",
-        "value": "README.md"
-      },
-      {
-        "type": "folder",
-        "value": "online"
-      },
-      {
         "type": "folder",
         "value": ".github"
+      },
+      {
+        "type": "file",
+        "value": "README.md"
       }
     ]
   }

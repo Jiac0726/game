@@ -1,17 +1,5 @@
 node_modules/
-__pycache__/
-*.pyc
+.cloudbase/
 .DS_Store
-project.private.config.json
-.env
-.env.*
 *.log
-
-# External asset library: never commit image files or archives.
-assets/
-asset-library/
-*.png
-*.jpg
-*.jpeg
-*.webp
-*.zip
+project.private.config.json

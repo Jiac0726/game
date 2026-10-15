@@ -1,13 +1,9 @@
-name: Node regression tests
+name: Standalone flying chess tests
 on:
   push:
     branches:
-      - main
-      - 'feat/**'
-      - 'fix/**'
+      - standalone/flying-chess-wechat
   pull_request:
-    branches:
-      - main
   workflow_dispatch:
 jobs:
   test:
@@ -19,5 +15,5 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Run game and multiplayer unit tests
+      - name: Check self-contained app
         run: node --test tests/*.test.js
