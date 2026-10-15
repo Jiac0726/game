@@ -36,13 +36,45 @@ wx.cloud.callFunction({
   .catch(e=>console.error('云函数调用错误',e));
 ```
 
-正确结果应包含 `ok:true`、`store:'wechat-cloud-database'` 和 **`version:'wxdb-txset-20261015-2'`**。若返回 `ROOM / 房间码无效` 或没有版本号，表示云端仍执行旧版 `flyingRoom`，或小游戏请求的是别的云环境；如果界面仍显示「请检查新环境是否创建 flying_rooms」，也可能是旧版函数报错或旧提示未清除。
+正确结果应包含 `ok:true`、`store:'wechat-cloud-database'` 和 **`version:'wxdb-debug-20261015-3'`**。若返回 `ROOM / 房间码无效` 或没有版本号，表示云端仍执行旧版 `flyingRoom`，或小游戏请求的是别的云环境；如果界面仍显示「请检查新环境是否创建 flying_rooms」，也可能是旧版函数报错或旧提示未清除。
 
 本热修复解决两个真实遇到的服务端事务问题：
 - `-502001 Cannot create field 'colors' in element {game: null}`：`doc.update` 把嵌套对象展开，不能在 `null` 创建 `colors`。
 - **微信 Node SDK 事务中 `doc.set` 接收裸文档**：应使用 `tx.collection('flying_rooms').doc(id).set({state:next,expiresAt:...,updatedAt:...})`，**不要**像普通 `collection.add` 一样包一层 `{data:{...}}`，否则错误写成 `document.data.state`。
 
 热修复兼容读取上一次错误部署导致的 `document.data.state` 包装，后续正确事务写入将恢复到 `document.state`；不要求删除原房间。若仍失败，请从新环境 `flyingRoom` 的运行日志提取 `stage/action/code/message` 四个字段，不能只看 `200` 状态码。
+
+## B3. 在小游戏客户端直接显示详细报错（开发调试用）
+
+V1.0 云函数加入结构化诊断信息。**无论是否开启调试**，数据库失败都会向小游戏返回 `code=DATABASE`、`stage`（例如 `transaction`）、`action`（例如 `ready`）、`dbCode`（例如 `-502001`）。小游戏操作失败时自动弹出「云数据库错误详情」，按钮支持复制内容到剪贴板，不需要到运行日志手工筛选。
+
+要在弹窗里看到 SDK 的具体报错原文，在**小游戏实际使用的**云环境 `cloudbase-d1gj6cm1ncb1f981a` → 云函数 `flyingRoom` →「配置」→「环境变量」添加：
+
+```text
+FLYING_ROOM_DEBUG=1
+```
+
+保存并应用到函数后，再执行一次出现错误的操作。诊断示例：
+
+```text
+操作：ready
+阶段：transaction
+错误码：-502001
+具体原因：document.set:fail ...
+```
+
+客户端 `wx.cloud.callFunction({name:'flyingRoom',data:{action:'health'}})` 正常应返回：
+
+```json
+{
+  "ok": true,
+  "version": "wxdb-debug-20261015-3",
+  "store": "wechat-cloud-database",
+  "debugEnabled": true
+}
+```
+
+**安全提示**：诊断详情有基本的密码和令牌字符串脱敏，但不保证隐藏所有数据库内部信息，因此 `FLYING_ROOM_DEBUG=1` **只能临时用于开发环境／短时调试**，正式发布前一定删除或设置 `FLYING_ROOM_DEBUG=0`。用户无法在普通小游戏前端请求中自行开启此功能。默认关闭时仍会显示操作、阶段和错误码。
 
 ## C. 建房链路
 
