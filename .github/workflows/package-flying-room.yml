@@ -32,6 +32,20 @@ jobs:
           grep -Fxq 'package.json' /tmp/flying-files.txt
           ! grep -q '^cloudfunctions/' /tmp/flying-files.txt
           ! grep -q '^flyingRoom/' /tmp/flying-files.txt
+      # upload-artifact always wraps its input in a download ZIP.
+      # Uploading an already zipped flyingRoom.zip produces a *nested* ZIP:
+      # GitHub artifact.zip -> flyingRoom.zip -> index.js, which CloudBase
+      # cannot deploy directly ("filename not matched: index.js").
+      # Upload source files as artifact contents so the *downloaded ZIP itself*
+      # has root-level index.js / package.json and can go straight to Tencent.
+      - name: Upload DIRECT deployment ZIP (index.js at ZIP root)
+        uses: actions/upload-artifact@v4
+        with:
+          name: flyingRoom-DIRECT-upload
+          path: cloudfunctions/flyingRoom/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 6
       - uses: actions/upload-artifact@v4
         with:
           name: flyingRoom-scf-zip
